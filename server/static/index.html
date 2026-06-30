@@ -8,12 +8,11 @@
 <title>身份证信息修改</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f0f0f;color:#e0e0e0;min-height:100vh;min-height:100dvh;overflow-x:hidden}
-.container{width:100%;max-width:500px;margin:0 auto;padding:16px;background:#1a1a1a;min-height:100vh;min-height:100dvh}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f0f0f;color:#e0e0e0;min-height:100vh;overflow-x:hidden}
+.container{width:100%;max-width:520px;margin:0 auto;padding:16px;background:#1a1a1a;min-height:100vh}
 h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
-.subtitle{color:#888;font-size:12px;margin-bottom:20px;text-align:center}
+.subtitle{color:#888;font-size:12px;margin-bottom:16px;text-align:center}
 
-/* Upload zone */
 .upload-zone{border:2px dashed #333;border-radius:12px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;position:relative;-webkit-tap-highlight-color:transparent}
 .upload-zone:active{border-color:#667eea;background:#1e1e2e}
 .upload-zone.has-image{border-style:solid;border-color:#667eea;padding:10px}
@@ -21,28 +20,40 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 .upload-text{color:#888;font-size:14px}
 .upload-hint{color:#555;font-size:12px;margin-top:4px}
 
-/* Preview */
 .preview-area{display:none;position:relative}
 .preview-area.show{display:block}
 .preview-area img{max-width:100%;max-height:180px;border-radius:8px;margin:0 auto;display:block}
 .remove-btn{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;line-height:30px;text-align:center;min-height:30px;-webkit-tap-highlight-color:transparent}
 
-/* Input */
-.input-section{margin-bottom:14px}
+.input-section{margin-bottom:12px}
 .input-section label{display:block;font-size:13px;color:#aaa;margin-bottom:5px}
 .input-section input,.input-section textarea{width:100%;background:#252525;border:1px solid #333;border-radius:10px;padding:11px 12px;color:#e0e0e0;font-size:15px;outline:none;transition:border .2s;-webkit-appearance:none;font-family:inherit}
 .input-section input:focus,.input-section textarea:focus{border-color:#667eea}
 .input-section textarea{resize:none;height:60px;font-size:14px}
 .input-section .hint{color:#666;font-size:11px;margin-top:3px}
-.input-section .birth-display{background:#1a2a1a;border:1px solid #2a4a2a;border-radius:8px;padding:10px 12px;color:#4ade80;font-size:14px;text-align:center;margin-top:6px;display:none}
-.input-section .birth-display.show{display:block}
+.birth-display{background:#1a2a1a;border:1px solid #2a4a2a;border-radius:8px;padding:10px 12px;color:#4ade80;font-size:14px;text-align:center;margin-top:6px;display:none}
+.birth-display.show{display:block}
 
-/* Field tag */
-.field-tag{display:inline-block;background:#2a2a4a;color:#8888cc;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px;vertical-align:middle}
+.field-tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px;vertical-align:middle}
 .field-tag.required{background:#3a2020;color:#f87171}
 .field-tag.optional{background:#252535;color:#888}
 
-/* Buttons */
+/* OCR result panel */
+.ocr-panel{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:10px;padding:12px;margin-bottom:16px;display:none}
+.ocr-panel.show{display:block}
+.ocr-panel h3{font-size:13px;color:#8888cc;margin-bottom:8px}
+.ocr-panel table{width:100%;border-collapse:collapse}
+.ocr-panel td{padding:4px 6px;font-size:12px;border-bottom:1px solid #1e1e3a}
+.ocr-panel td:first-child{color:#888;width:70px;white-space:nowrap}
+.ocr-panel td:last-child{color:#ccc;word-break:break-all}
+.ocr-panel .ocr-status{font-size:11px;color:#4ade80;margin-top:6px}
+
+/* Prompt panel */
+.prompt-panel{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:10px;margin-bottom:14px;display:none;max-height:200px;overflow-y:auto}
+.prompt-panel.show{display:block}
+.prompt-panel h3{font-size:12px;color:#666;margin-bottom:6px}
+.prompt-panel pre{font-size:11px;color:#999;white-space:pre-wrap;word-break:break-all;line-height:1.5;margin:0}
+
 .btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;min-height:50px;-webkit-tap-highlight-color:transparent}
 .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;margin-top:8px}
 .btn-primary:active{opacity:.9;transform:scale(.98)}
@@ -50,23 +61,20 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 .btn-download{min-height:36px;padding:8px 16px;background:#333;color:#ccc;border:none;border-radius:8px;cursor:pointer;font-size:13px;-webkit-tap-highlight-color:transparent}
 .btn-download:active{background:#444}
 
-/* Results */
 .result-section{display:none;margin-top:20px;border-top:1px solid #333;padding-top:20px}
 .result-section.show{display:block}
 .result-card{background:#222;border-radius:12px;padding:14px;max-width:320px;margin:0 auto;text-align:center}
 .result-card .label{font-size:11px;color:#888;margin-bottom:8px}
 .result-card img{max-width:100%;max-height:250px;border-radius:8px;display:block;margin:0 auto}
 
-/* Status */
 .status-bar{margin-top:14px;padding:14px;background:#252525;border-radius:8px;font-size:13px;color:#888;text-align:center;display:none}
 .status-bar.show{display:block}
 .spinner{display:inline-block;width:18px;height:18px;border:2px solid #333;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-msg{background:#3a1515;color:#f87171;padding:12px;border-radius:8px;font-size:13px;margin-top:10px;display:none}
 .error-msg.show{display:block}
-#fileInput{display:none}
+#fileInput{display:none;}
 
-/* Desktop */
 @media(min-width:700px){
   .container{max-width:520px;padding:28px;min-height:auto}
   h1{font-size:24px}
@@ -76,9 +84,8 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 <body>
 <div class="container">
   <h1>🔏 身份证信息修改</h1>
-  <p class="subtitle">上传身份证 · 填写新信息 · AI 精确替换文字</p>
+  <p class="subtitle">AI 先读取身份证 → 锚点定位 → 精准替换文字</p>
 
-  <!-- 身份证上传 -->
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
     <span class="upload-icon" id="uploadIcon">🆔</span>
     <div class="upload-text" id="uploadText">点击上传身份证照片</div>
@@ -90,12 +97,19 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
   </div>
   <input type="file" id="fileInput" accept="image/*">
 
-  <!-- 身份证号（必填） -->
+  <!-- OCR 结果（修改后显示） -->
+  <div class="ocr-panel" id="ocrPanel">
+    <h3>🔍 AI 已识别身份证内容</h3>
+    <table id="ocrTable"></table>
+    <div class="ocr-status" id="ocrStatus"></div>
+  </div>
+
+  <!-- 新身份证号（必填） -->
   <div class="input-section">
     <label>📝 新的身份证号码 <span class="field-tag required">必填</span></label>
     <input type="text" id="idNumberInput" placeholder="输入18位身份证号码" maxlength="18" inputmode="numeric" pattern="[0-9Xx]*" autocomplete="off" style="letter-spacing:2px;text-align:center;min-height:48px;font-size:18px">
     <div class="birth-display" id="birthDisplay"></div>
-    <div class="hint">出生日期将自动从号码中推导并一起修改</div>
+    <div class="hint">出生日期将自动从号码推导并一起修改</div>
   </div>
 
   <!-- 姓名（选填） -->
@@ -114,6 +128,12 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
   <div class="status-bar" id="statusBar"><span class="spinner"></span> AI 正在处理，请稍候…</div>
   <div class="error-msg" id="errorMsg"></div>
 
+  <!-- 生成的实际 Prompt -->
+  <div class="prompt-panel" id="promptPanel">
+    <h3>📋 实际发送给 AI 的编辑指令</h3>
+    <pre id="promptContent"></pre>
+  </div>
+
   <div class="result-section" id="resultSection">
     <div class="result-card">
       <div class="label">✅ 修改完成</div>
@@ -126,7 +146,7 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 <script>
 let uploadedImage = null;
 
-// ---------- 身份证上传 ----------
+// ==== 身份证上传 ====
 document.getElementById('fileInput').addEventListener('change', function(e){
   const file = e.target.files[0];
   if(!file || !file.type.startsWith('image/')) return;
@@ -153,9 +173,11 @@ document.getElementById('removeBtn').addEventListener('click', function(e){
   document.getElementById('uploadZone').classList.remove('has-image');
   document.getElementById('fileInput').value = '';
   document.getElementById('resultSection').classList.remove('show');
+  document.getElementById('ocrPanel').classList.remove('show');
+  document.getElementById('promptPanel').classList.remove('show');
 });
 
-// ---------- 身份证号输入 → 自动推导出生日期 ----------
+// ==== 身份证号 → 自动推导出生日期 ====
 document.getElementById('idNumberInput').addEventListener('input', function(){
   this.value = this.value.replace(/[^0-9Xx]/g, '').toUpperCase();
   updateBirthDisplay();
@@ -175,7 +197,7 @@ function updateBirthDisplay(){
   }
 }
 
-// ---------- 提交 ----------
+// ==== 提交 ====
 async function submitEdit(){
   if(!uploadedImage){ showError('请先上传身份证照片'); return; }
   const newId = document.getElementById('idNumberInput').value.trim();
@@ -191,6 +213,8 @@ async function submitEdit(){
   btn.disabled = true;
   btn.textContent = '⏳ 处理中…';
   statusBar.classList.add('show');
+  document.getElementById('ocrPanel').classList.remove('show');
+  document.getElementById('promptPanel').classList.remove('show');
   hideError();
 
   try{
@@ -198,7 +222,8 @@ async function submitEdit(){
       image: uploadedImage,
       new_id: newId,
       new_name: newName,
-      new_address: newAddress
+      new_address: newAddress,
+      new_photo: ''
     };
 
     const res = await fetch('/api/edit', {
@@ -208,9 +233,22 @@ async function submitEdit(){
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || '请求失败');
+
+    // 显示 OCR 结果
+    if(data.data.original){
+      showOcrResult(data.data.original);
+    }
+
+    // 显示结果
     document.getElementById('resultImg').src = data.data.image;
-    document.getElementById('resultSection').addClass('show');
+    document.getElementById('resultSection').classList.add('show');
     document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
+
+    // 显示使用的 prompt
+    if(data.data.prompt){
+      document.getElementById('promptContent').textContent = data.data.prompt;
+      document.getElementById('promptPanel').classList.add('show');
+    }
   }catch(err){
     showError(err.message || '处理失败');
   }finally{
@@ -218,6 +256,26 @@ async function submitEdit(){
     btn.textContent = '✨ 开始修改';
     statusBar.classList.remove('show');
   }
+}
+
+function showOcrResult(original){
+  const tb = document.getElementById('ocrTable');
+  const order = ['姓名','性别','民族','出生','住址','公民身份号码','签发机关','有效期限'];
+  let html = '';
+  order.forEach(key => {
+    const val = original[key] || '—';
+    html += `<tr><td>${key}</td><td>${escapeHtml(val)}</td></tr>`;
+  });
+  tb.innerHTML = html;
+  document.getElementById('ocrStatus').textContent = '✅ OCR 识别成功，AI 将基于以上原始文字进行精确替换';
+  document.getElementById('ocrPanel').classList.add('show');
+  document.getElementById('ocrPanel').scrollIntoView({behavior:'smooth'});
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 function downloadResult(){

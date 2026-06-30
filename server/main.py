@@ -1,5 +1,6 @@
 import os
 import io
+import json
 import base64
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -14,8 +15,10 @@ app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 SF_API_KEY = os.getenv("SF_API_KEY", "")
-SF_BASE_URL = "https://api.siliconflow.cn/v1/images/generations"
-SF_MODEL = "Qwen/Qwen-Image-Edit-2509"
+SF_IMAGE_URL = "https://api.siliconflow.cn/v1/images/generations"
+SF_CHAT_URL = "https://api.siliconflow.cn/v1/chat/completions"
+SF_EDIT_MODEL = "Qwen/Qwen-Image-Edit-2509"
+SF_VISION_MODEL = "Qwen/Qwen2.5-VL-72B-Instruct"
 
 
 class EditRequest(BaseModel):
@@ -23,72 +26,142 @@ class EditRequest(BaseModel):
     new_id: str         # new 18-digit ID number
     new_name: str = ""  # optional: new name
     new_address: str = ""  # optional: new address
-    new_photo: str = ""   # optional: base64 new avatar photo
+    new_photo: str = ""   # optional: base64 new avatar photo (reserved)
 
+
+# ---------- Utility ----------
 
 def extract_birth_date(id_number: str) -> str:
-    """从18位身份证号提取出生日期，格式匹配真实身份证：1993年5月24日"""
+    """从18位身份证号提取出生日期，格式：1993年5月24日"""
     year = id_number[6:10]
-    month = str(int(id_number[10:12]))   # 去前导零：05 → 5
-    day = str(int(id_number[12:14]))     # 去前导零：24 → 24
+    month = str(int(id_number[10:12]))
+    day = str(int(id_number[12:14]))
     return f"{year}年{month}月{day}日"
 
 
-def build_prompt(new_id: str, birth_date: str, new_name: str, new_address: str) -> str:
+def strip_data_url(b64: str) -> str:
+    if "," in b64:
+        return b64.split(",", 1)[1]
+    return b64
+
+
+# ---------- Vision model: OCR the ID card ----------
+
+IDCARD_OCR_PROMPT = """你是一个身份证OCR识别器。请仔细阅读这张中国居民身份证图片，提取以下字段并返回严格的JSON格式（不要markdown代码块，只要纯JSON）。
+
+注意：
+- 逐字核对，确保每个字都准确
+- 公民身份号码必须完整提取18位
+- 住址必须完整提取，不要省略任何字
+- 如果某个字段看不清，填"未知"
+
+返回JSON格式如下：
+{
+  "姓名": "...",
+  "性别": "...",
+  "民族": "...",
+  "出生": "...",
+  "住址": "...",
+  "公民身份号码": "...",
+  "签发机关": "...",
+  "有效期限": "..."
+}"""
+
+
+async def ocr_id_card(client: httpx.AsyncClient, image_b64: str) -> dict:
+    """Use vision model to read all text fields from the ID card."""
+    headers = {
+        "Authorization": f"Bearer {SF_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": SF_VISION_MODEL,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": image_b64}},
+                    {"type": "text", "text": IDCARD_OCR_PROMPT}
+                ]
+            }
+        ],
+        "temperature": 0.1,
+        "max_tokens": 1024
+    }
+
+    resp = await client.post(SF_CHAT_URL, headers=headers, json=payload)
+
+    if resp.status_code != 200:
+        raise HTTPException(500, f"OCR failed ({resp.status_code}): {resp.text[:500]}")
+
+    data = resp.json()
+    content = data["choices"][0]["message"]["content"]
+
+    # Parse JSON from response (may have markdown fences)
+    content = content.strip()
+    if content.startswith("```"):
+        lines = content.split("\n")
+        content = "\n".join(lines[1:-1])
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        # Try to extract JSON from the text
+        import re
+        match = re.search(r'\{[\s\S]*\}', content)
+        if match:
+            return json.loads(match.group())
+        raise HTTPException(500, f"OCR returned invalid JSON: {content[:300]}")
+
+
+# ---------- Build precise edit prompt ----------
+
+def build_prompt(original: dict, new_id: str, birth_date: str, new_name: str, new_address: str) -> str:
     """
-    极其精确的 prompt：每个字段都给出具体值和格式示例。
-    不再使用编号列表（模型容易忽略后面的项），而是用自然语言逐条强调。
+    Build prompt using original text as exact anchors.
+    Tells the model: "find the text '张三' and change it to '李四'".
+    This way the model knows EXACTLY which pixels to modify.
     """
-    # 收集要修改的项
-    changes = []
+    original_number = original.get("公民身份号码", "未知")
+    original_birth = original.get("出生", "未知")
+    original_name = original.get("姓名", "未知")
+    original_address = original.get("住址", "未知")
 
-    # 身份证号 —— 必须修改
-    changes.append(
-        f"【公民身份号码】必须改为 {new_id}（共18位，最后一位是{new_id[-1]}）。"
-        f"颜色要求：仔细观察原身份证上「姓名」「住址」等文字的颜色深浅——它们不是纯黑色而是深蓝灰色。"
-        f"新号码的每一个数字都必须使用与姓名、住址文字完全相同的颜色、粗细、字体大小。"
-        f"绝对禁止使用纯黑色(#000000)。"
-    )
+    parts = []
+    parts.append("你是一个精确的身份证文字编辑器。请在原图上对以下文字进行替换。")
+    parts.append("")
+    parts.append("【重要】你必须把身份证上的原始文字找出来，替换为新文字。每项替换只改动该处文字，其他区域完全不动。")
+    parts.append("")
 
-    # 出生日期 —— 必须跟随身份证号一起改
-    changes.append(
-        f"【出生】必须改为 {birth_date}。"
-        f"格式必须是「{birth_date}」这样的中文格式，数字之间用「年」「月」「日」分隔。"
-        f"这个日期来自新身份证号第7-14位({new_id[6:10]}{new_id[10:12]}{new_id[12:14]})，必须同步修改！"
-    )
+    # 1. 身份证号
+    parts.append(f"1. 找到身份证上原号码「{original_number}」，将它替换为「{new_id}」。")
+    parts.append(f"   新号码颜色必须与身份证上原有文字的墨色完全一致（不是纯黑，而是深蓝灰），字体、字号、间距与原文字相同。")
 
-    # 姓名
-    if new_name:
-        changes.append(f"【姓名】必须改为「{new_name}」")
+    # 2. 出生日期
+    parts.append(f"2. 找到原出生日期「{original_birth}」，将它替换为「{birth_date}」。")
+    parts.append(f"   格式是「年」「月」「日」中文分隔，颜色同上。")
 
-    # 住址
-    if new_address:
-        changes.append(f"【住址】必须改为「{new_address}」")
+    # 3. 姓名
+    if new_name and new_name != original_name:
+        parts.append(f"3. 找到原姓名「{original_name}」，将它替换为「{new_name}」。颜色、字体同上。")
 
-    # 组装 prompt
-    prompt_parts = []
-    prompt_parts.append("这是一张中国居民身份证照片。你需要对其中的文字信息进行精确修改。")
-    prompt_parts.append("")
-    prompt_parts.append("需要修改的内容（每一项都必须执行，不能遗漏）：")
+    # 4. 住址
+    if new_address and new_address != original_address:
+        parts.append(f"4. 找到原住址「{original_address}」，将它替换为「{new_address}」。颜色、字体同上。")
 
-    for i, change in enumerate(changes, 1):
-        prompt_parts.append(f"{i}. {change}")
+    parts.append("")
+    parts.append("【绝对禁止】")
+    parts.append("- 禁止修改未列出的任何文字（如性别、民族、签发机关、有效期限）")
+    parts.append("- 禁止修改头像照片、背景、边框、水印、防伪纹路")
+    parts.append("- 禁止改变整图的亮度、对比度、色调")
+    parts.append("- 禁止在任何不该有文字的地方写新文字")
+    parts.append("- 禁止使用纯黑色(#000000)，所有文字必须是深蓝灰色")
 
-    prompt_parts.append("")
-    prompt_parts.append("绝对不能修改的内容（保持100%不变）：")
-    prompt_parts.append("- 性别、民族")
-    prompt_parts.append("- 签发机关、有效期限")
-    prompt_parts.append("- 身份证的整体布局、背景色、边框、防伪纹路、水印")
-    prompt_parts.append("- 如果有头像照片，保持头像不变")
-    prompt_parts.append("- 图片整体的亮度、对比度都不要改变")
-    prompt_parts.append("")
-    prompt_parts.append("文字排版要求：")
-    prompt_parts.append("- 新写入的文字字体、字号、字间距必须和原来该位置的文字完全一致")
-    prompt_parts.append("- 文字位置必须精准对齐到原来的对应位置")
-    prompt_parts.append("- 所有新文字的颜色统一为深蓝灰色（与原有姓名/住址文字同色），严禁纯黑")
+    return "\n".join(parts)
 
-    return "\n".join(prompt_parts)
 
+# ---------- API endpoint ----------
 
 @app.post("/api/edit")
 async def edit_image(req: EditRequest):
@@ -97,40 +170,44 @@ async def edit_image(req: EditRequest):
 
     birth_date = extract_birth_date(req.new_id)
 
-    # 直接使用原始身份证图片，不做任何预处理
-    work_image = req.image
-
-    prompt = build_prompt(req.new_id, birth_date, req.new_name, req.new_address)
-
-    headers = {
-        "Authorization": f"Bearer {SF_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
     async with httpx.AsyncClient(timeout=180.0) as client:
+
+        # Step 1: OCR the ID card to get original text
+        image_url = req.image
+        original = await ocr_id_card(client, image_url)
+
+        # Step 2: Build precise prompt with original text anchors
+        prompt = build_prompt(original, req.new_id, birth_date, req.new_name, req.new_address)
+
+        # Step 3: Call image edit model
+        headers = {
+            "Authorization": f"Bearer {SF_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
         payload = {
-            "model": SF_MODEL,
+            "model": SF_EDIT_MODEL,
             "prompt": prompt,
-            "image": work_image,
+            "image": image_url,
             "image_size": "1024x1024"
         }
 
-        resp = await client.post(SF_BASE_URL, headers=headers, json=payload)
+        resp = await client.post(SF_IMAGE_URL, headers=headers, json=payload)
         data = resp.json()
 
         if resp.status_code != 200:
             error_msg = data.get("message", str(data))
-            raise HTTPException(500, f"SiliconFlow error ({resp.status_code}): {error_msg}")
+            raise HTTPException(500, f"Image edit failed ({resp.status_code}): {error_msg}")
 
         images = data.get("images", [])
         if not images:
             raise HTTPException(500, f"No image in response: {str(data)[:500]}")
 
-        image_url = images[0].get("url", "")
-        if not image_url:
+        result_url = images[0].get("url", "")
+        if not result_url:
             raise HTTPException(500, f"Empty image URL in response: {str(data)[:500]}")
 
-        dl_resp = await client.get(image_url)
+        dl_resp = await client.get(result_url)
         if dl_resp.status_code != 200:
             raise HTTPException(500, f"Failed to download result image: {dl_resp.status_code}")
 
@@ -140,7 +217,9 @@ async def edit_image(req: EditRequest):
         return {
             "code": 0,
             "data": {
-                "image": f"data:{content_type};base64,{img_b64}"
+                "image": f"data:{content_type};base64,{img_b64}",
+                "original": original,   # OCR result for debugging
+                "prompt": prompt        # the actual edit prompt used
             }
         }
 
