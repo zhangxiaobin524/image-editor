@@ -1,7 +1,10 @@
 import os
 import io
 import base64
-import httpx
+import cv2
+import numpy as np
+import pytesseract
+from PIL import Image, ImageDraw, ImageFont
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -13,9 +16,7 @@ load_dotenv()
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-SF_API_KEY = os.getenv("SF_API_KEY", "")
-SF_IMAGE_URL = "https://api.siliconflow.cn/v1/images/generations"
-SF_MODEL = "Qwen/Qwen-Image-Edit-2509"
+FONT_PATH = "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc"
 
 
 class EditRequest(BaseModel):
@@ -24,95 +25,210 @@ class EditRequest(BaseModel):
 
 
 def parse_birth_from_id(id_num: str) -> str:
-    y = id_num[6:10]
-    m = id_num[10:12]
-    d = id_num[12:14]
+    y, m, d = id_num[6:10], id_num[10:12], id_num[12:14]
     return f"{y}年{int(m)}月{int(d)}日"
 
 
-async def call_edit(client, prompt: str, image_b64: str) -> bytes:
-    """Call Qwen Image Edit API once, return raw image bytes."""
-    payload = {
-        "model": SF_MODEL,
-        "prompt": prompt,
-        "image": image_b64,
-        "num_inference_steps": 28,
-        "seed": 42,
-    }
-    resp = await client.post(SF_IMAGE_URL, json=payload)
-    data = resp.json()
+def b64_to_cv2(b64: str) -> np.ndarray:
+    if "," in b64:
+        b64 = b64.split(",", 1)[1]
+    buf = np.frombuffer(base64.b64decode(b64), np.uint8)
+    return cv2.imdecode(buf, cv2.IMREAD_COLOR)
 
-    if resp.status_code != 200:
-        raise Exception(f"API error ({resp.status_code}): {data.get('message', '')[:300]}")
 
-    images = data.get("images", [])
-    if not images:
-        raise Exception("No image in response")
+def cv2_to_b64(img: np.ndarray) -> str:
+    _, buf = cv2.imencode('.png', img)
+    return f"data:image/png;base64,{base64.b64encode(buf).decode()}"
 
-    result_url = images[0].get("url", "")
-    dl_resp = await client.get(result_url)
-    if dl_resp.status_code != 200:
-        raise Exception(f"Download failed: {dl_resp.status_code}")
 
-    return dl_resp.content
+def ocr_lines(img: np.ndarray) -> list[dict]:
+    """Run Tesseract, return list of detected text lines with bboxes."""
+    data = pytesseract.image_to_data(
+        img, lang='chi_sim', output_type=pytesseract.Output.DICT,
+        config='--psm 6'
+    )
+    lines = {}
+    for i in range(len(data['text'])):
+        t = data['text'][i].strip()
+        if not t or int(data['conf'][i]) < 20:
+            continue
+        key = (data['block_num'][i], data['line_num'][i])
+        if key not in lines:
+            lines[key] = {
+                'left': data['left'][i], 'top': data['top'][i],
+                'right': data['left'][i] + data['width'][i],
+                'bottom': data['top'][i] + data['height'][i],
+                'text': t, 'words': [t]
+            }
+        else:
+            r = lines[key]
+            r['left'] = min(r['left'], data['left'][i])
+            r['top'] = min(r['top'], data['top'][i])
+            r['right'] = max(r['right'], data['left'][i] + data['width'][i])
+            r['bottom'] = max(r['bottom'], data['top'][i] + data['height'][i])
+            r['text'] += t
+            r['words'].append(t)
+    return sorted(lines.values(), key=lambda x: x['top'])
+
+
+def find_region(lines: list[dict], keyword: str) -> dict | None:
+    """Find line containing keyword."""
+    for r in lines:
+        if keyword in r['text']:
+            return r
+    return None
+
+
+def find_id_number_region(lines: list[dict]) -> dict | None:
+    """Find line with 17+ digit/chars near bottom."""
+    for r in reversed(lines):
+        digits = ''.join(c for c in r['text'] if c.isdigit() or c.upper() == 'X')
+        if len(digits) >= 17:
+            return r
+    return None
+
+
+def sample_text_color(img: np.ndarray, region: dict) -> tuple[int, int, int]:
+    """Sample dominant text color (BGR) from region."""
+    x1, y1 = max(0, region['left']), max(0, region['top'])
+    x2, y2 = min(img.shape[1], region['right']), min(img.shape[0], region['bottom'])
+    roi = img[y1:y2, x1:x2]
+    if roi.size == 0:
+        return (80, 40, 40)
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    _, bin_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    dark = bin_img == 0
+    if np.sum(dark) > 20:
+        return tuple(int(c) for c in np.mean(roi[dark], axis=0))
+    return (80, 40, 40)
+
+
+def erase_text(img: np.ndarray, region: dict, margin: int = 6) -> np.ndarray:
+    """Inpaint text area using TELEA algorithm."""
+    h, w = img.shape[:2]
+    x1 = max(0, region['left'] - margin)
+    y1 = max(0, region['top'] - margin)
+    x2 = min(w, region['right'] + margin)
+    y2 = min(h, region['bottom'] + margin)
+    roi = img[y1:y2, x1:x2]
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    _, bin_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    kernel = np.ones((3, 3), np.uint8)
+    bin_img = cv2.dilate(bin_img, kernel, iterations=3)
+    mask = np.zeros((h, w), dtype=np.uint8)
+    mask[y1:y2, x1:x2] = bin_img
+    return cv2.inpaint(img, mask, 7, cv2.INPAINT_TELEA)
+
+
+def render_new_text(img: np.ndarray, region: dict, text: str, font_path: str,
+                    color_bgr: tuple[int, int, int]) -> np.ndarray:
+    """Render new text centered in region."""
+    region_w = region['right'] - region['left']
+    region_h = region['bottom'] - region['top']
+
+    pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+    draw = ImageDraw.Draw(pil)
+
+    # Determine font size
+    font_size = int(region_h * 0.65)
+    font = ImageFont.truetype(font_path, font_size)
+    test_bbox = draw.textbbox((0, 0), text, font=font)
+    tw = test_bbox[2] - test_bbox[0]
+
+    if tw > region_w * 1.15:
+        scale = region_w * 1.15 / tw
+        font = ImageFont.truetype(font_path, max(10, int(font_size * scale)))
+        test_bbox = draw.textbbox((0, 0), text, font=font)
+        tw = test_bbox[2] - test_bbox[0]
+
+    th = test_bbox[3] - test_bbox[1]
+    x = int(region['left'] + (region_w - tw) / 2)
+    y = int(region['top'] + (region_h - th) / 2 - test_bbox[1])
+
+    # Convert BGR -> RGB for PIL
+    rgb = (color_bgr[2], color_bgr[1], color_bgr[0])
+
+    if len(text) == 18 and all(c.isdigit() or c.upper() == 'X' for c in text):
+        # Monospace rendering for ID number
+        char_w = region_w / len(text)
+        for i, ch in enumerate(text):
+            cx = int(region['left'] + i * char_w)
+            draw.text((cx, y), ch, font=font, fill=rgb)
+    else:
+        draw.text((x, y), text, font=font, fill=rgb)
+
+    return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
 
 
 @app.post("/api/edit")
 async def edit_image(req: EditRequest):
-    if not SF_API_KEY:
-        raise HTTPException(500, "SF_API_KEY not configured")
-
     birth = parse_birth_from_id(req.new_id)
 
-    headers = {
-        "Authorization": f"Bearer {SF_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    if not os.path.exists(FONT_PATH):
+        raise HTTPException(500, f"Font not found: {FONT_PATH}")
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        client.headers.update(headers)
+    img = b64_to_cv2(req.image)
+    h, w = img.shape[:2]
 
-        # === Step 1: 改号码 ===
-        step1_prompt = (
-            f"编辑任务：将身份证上的公民身份号码精确替换为 {req.new_id}。"
-            f"要求：(1)只修改底部的18位数字，(2)新数字必须使用和原身份证上其他印刷文字完全相同的字体、颜色、粗细、间距，"
-            f"(3)身份证上其他所有内容100%保持不变（姓名、性别、民族、出生日期、住址、照片、背景纹路、边框全部不动），"
-            f"(4)不要添加任何多余文字或符号。"
-        )
-        img_bytes_1 = await call_edit(client, step1_prompt, req.image)
-        img_b64_1 = base64.b64encode(img_bytes_1).decode()
-        ct_1 = "image/png"
+    # ---- OCR ----
+    lines = ocr_lines(img)
 
-        # === Step 2: 改出生日期（基于Step1的结果） ===
-        step2_prompt = (
-            f"编辑任务：将身份证上的「出生」那一行文字中的日期整行替换。"
-            f"找到当前显示的出生日期（格式如 XXXX年X月X日），将其完整替换为 {birth}（包括年、月、日全部替换）。"
-            f"要求：(1)年月日三个数字都必须改，不能只改年份，(2)新文字字体、颜色、大小必须和原证件上其他印刷文字完全一致，"
-            f"(3)只修改出生日期这一处，其他所有内容100%保持不变。"
-        )
-        img_bytes_2 = await call_edit(
-            client, step2_prompt,
-            f"data:{ct_1};base64,{img_b64_1}"   # 用Step1的输出作为输入
-        )
-        ct_2 = "image/png"
+    birth_region = find_region(lines, "出生") or find_region(lines, "生")
+    id_region = find_id_number_region(lines)
 
-    final_b64 = base64.b64encode(img_bytes_2).decode()
+    # Fallback: estimate by proportions
+    if birth_region is None:
+        birth_region = {
+            'left': int(w * 0.28), 'top': int(h * 0.52),
+            'right': int(w * 0.58), 'bottom': int(h * 0.59),
+        }
+    if id_region is None:
+        id_region = {
+            'left': int(w * 0.12), 'top': int(h * 0.81),
+            'right': int(w * 0.88), 'bottom': int(h * 0.90),
+        }
+
+    birth_original = birth_region.copy()
+    id_original = id_region.copy()
+
+    # ---- Sample colors ----
+    birth_color = sample_text_color(img, birth_original)
+    id_color = sample_text_color(img, id_original)
+
+    # ---- Erase old text ----
+    img = erase_text(img, birth_original)
+    img = erase_text(img, id_original)
+
+    # ---- Render new text ----
+    img = render_new_text(img, birth_original, birth, FONT_PATH, birth_color)
+    img = render_new_text(img, id_original, req.new_id, FONT_PATH, id_color)
 
     return {
         "code": 0,
         "data": {
-            "image": f"data:{ct_2};base64,{final_b64}",
+            "image": cv2_to_b64(img),
             "birth_date": birth,
-            "steps": [
-                {"action": "修改号码", "to": req.new_id},
-                {"action": "修改出生日期", "to": birth},
-            ]
+            "method": "cv-pipeline",
+            "ocr_used": birth_region is not None and id_region is not None,
         }
     }
 
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "key_configured": bool(SF_API_KEY)}
+    import subprocess
+    t_ok = False
+    try:
+        r = subprocess.run(['tesseract', '--version'], capture_output=True, text=True)
+        t_ok = r.returncode == 0
+    except Exception:
+        pass
+    return {
+        "status": "ok",
+        "tesseract": t_ok,
+        "font_available": os.path.exists(FONT_PATH),
+        "method": "cv-pipeline"
+    }
+
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
