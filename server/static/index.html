@@ -28,6 +28,7 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 .input-group label{display:block;font-size:14px;color:#aaa;margin-bottom:6px}
 .input-group input{width:100%;background:#252525;border:1px solid #333;border-radius:10px;padding:14px;color:#e0e0e0;font-size:20px;text-align:center;letter-spacing:3px;outline:none;-webkit-appearance:none;font-family:monospace;min-height:52px;transition:border .2s}
 .input-group input:focus{border-color:#667eea}
+.input-group input:disabled{background:#1a1a2e;color:#667eea;border-color:#667eea;font-size:18px;letter-spacing:2px}
 
 .btn{width:100%;padding:15px;border:none;border-radius:12px;font-size:17px;font-weight:600;cursor:pointer;min-height:54px;-webkit-tap-highlight-color:transparent;transition:all .2s}
 .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
@@ -44,6 +45,13 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 .result-section.show{display:block}
 .result-section img{max-width:100%;max-height:300px;border-radius:8px;display:block;margin:0 auto 12px}
 
+.info-panel{margin-top:12px;background:#1a1a2e;border:1px solid #333;border-radius:8px;display:none}
+.info-panel.show{display:block}
+.info-panel .row{display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #2a2a3e;font-size:13px}
+.info-panel .row:last-child{border-bottom:none}
+.info-panel .label{color:#888}
+.info-panel .value{color:#667eea;font-weight:500;word-break:break-all}
+
 .error-msg{background:#3a1515;color:#f87171;padding:12px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
 .error-msg.show{display:block}
 #fileInput{display:none}
@@ -57,8 +65,8 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
   <p class="subtitle">号码 + 出生日期 · 其余不变</p>
 
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-    <span class="upload-icon" id="uploadIcon">🆔</span>
-    <div class="upload-text" id="uploadText">点此上传身份证照片</div>
+    <span class="upload-icon">🆔</span>
+    <div class="upload-text">点此上传身份证照片</div>
     <div class="upload-hint">JPG / PNG / WebP · 建议拍摄清晰</div>
     <div class="preview-area" id="previewArea">
       <img id="previewImg" alt="预览">
@@ -71,18 +79,25 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
     <label>新的身份证号码</label>
     <input type="text" id="idInput" placeholder="18 位身份证号码" maxlength="18" inputmode="numeric" autocomplete="off">
   </div>
+
   <div class="input-group" id="birthGroup" style="display:none">
     <label>出生日期（自动从号码提取）</label>
-    <input type="text" id="birthDisplay" disabled style="background:#1a1a2e;color:#667eea;border-color:#667eea;font-size:18px;letter-spacing:2px">
+    <input type="text" id="birthDisplay" disabled>
   </div>
 
-  <button class="btn btn-primary" id="submitBtn" onclick="doEdit()">修改号码 + 出生</button>
-  <div class="status-bar" id="statusBar"><span class="spinner"></span>处理中，请稍候…</div>
+  <button class="btn btn-primary" id="submitBtn" onclick="doEdit()">开始修改</button>
+  <div class="status-bar" id="statusBar"><span class="spinner"></span>AI处理中，请稍候…</div>
   <div class="error-msg" id="errorMsg"></div>
 
   <div class="result-section" id="resultSection">
     <img id="resultImg" alt="结果">
-    <button class="btn-download" onclick="download()">下载保存</button>
+
+    <div class="info-panel" id="infoPanel">
+      <div class="row"><span class="label">出生日期</span><span class="value" id="infoBirth">-</span></div>
+      <div class="row"><span class="label">发送指令</span><span class="value" id="infoPrompt" style="font-size:11px;text-align:right;max-width:70%">-</span></div>
+    </div>
+
+    <button class="btn-download" onclick="download()" style="margin-top:16px">下载保存</button>
   </div>
 </div>
 
@@ -98,8 +113,8 @@ document.getElementById('fileInput').addEventListener('change', function(e){
     image = ev.target.result;
     document.getElementById('previewImg').src = image;
     document.getElementById('previewArea').classList.add('show');
-    document.getElementById('uploadIcon').style.display='none';
-    document.getElementById('uploadText').style.display='none';
+    document.getElementById('uploadZone').querySelector('.upload-icon').style.display='none';
+    document.getElementById('uploadZone').querySelector('.upload-text').style.display='none';
     document.getElementById('uploadZone').classList.add('has-image');
   };
   r.readAsDataURL(f);
@@ -109,8 +124,8 @@ document.getElementById('removeBtn').addEventListener('click', function(e){
   e.stopPropagation();
   image=null;
   document.getElementById('previewArea').classList.remove('show');
-  document.getElementById('uploadIcon').style.display='';
-  document.getElementById('uploadText').style.display='';
+  document.getElementById('uploadZone').querySelector('.upload-icon').style.display='';
+  document.getElementById('uploadZone').querySelector('.upload-text').style.display='';
   document.getElementById('uploadZone').classList.remove('has-image');
   document.getElementById('fileInput').value='';
   document.getElementById('resultSection').classList.remove('show');
@@ -150,13 +165,25 @@ async function doEdit(){
     });
     const data=await res.json();
     if(!res.ok) throw new Error(data.detail||'请求失败');
+
+    // 显示结果图
     document.getElementById('resultImg').src=data.data.image;
+
+    // 显示信息面板
+    if(data.data.birth_date){
+      document.getElementById('infoBirth').textContent=data.data.birth_date;
+    }
+    if(data.data.prompt){
+      document.getElementById('infoPrompt').textContent=data.data.prompt;
+    }
+    document.getElementById('infoPanel').classList.add('show');
+
     document.getElementById('resultSection').classList.add('show');
     document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
   }catch(e){
     err(e.message||'处理失败');
   }finally{
-    btn.disabled=false; btn.textContent='修改号码'; sb.classList.remove('show');
+    btn.disabled=false; btn.textContent='开始修改'; sb.classList.remove('show');
   }
 }
 
@@ -169,13 +196,13 @@ function download(){
 function err(m){
   const el=document.getElementById('errorMsg');
   el.textContent=m; el.classList.add('show'); el.scrollIntoView({behavior:'smooth'});
-  setTimeout(()=>el.classList.remove('show'),5000);
+  setTimeout(()=>el.classList.remove('show'),8000);
 }
 
 // drag & drop
 const z=document.getElementById('uploadZone');
 z.addEventListener('dragover',e=>{e.preventDefault();z.style.borderColor='#764ba2'});
-z.addEventListener('dragleave',()=>z.style.borderColor='');
+z.addEventListener('dragleave',()=>z.style.borderColor=''});
 z.addEventListener('drop',e=>{
   e.preventDefault(); z.style.borderColor='';
   const f=e.dataTransfer.files[0];

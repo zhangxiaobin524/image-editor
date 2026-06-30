@@ -24,7 +24,6 @@ class EditRequest(BaseModel):
 
 
 def parse_birth_from_id(id_num: str) -> str:
-    """从身份证号提取出生日期，如 1995年5月24日"""
     y = id_num[6:10]
     m = id_num[10:12]
     d = id_num[12:14]
@@ -32,16 +31,13 @@ def parse_birth_from_id(id_num: str) -> str:
 
 
 def build_prompt(new_id: str) -> str:
-    """修改身份证号 + 同步修改出生日期"""
     birth = parse_birth_from_id(new_id)
+    # 简短精确的指令，避免模型自由发挥
     return (
-        f"身份证有两个地方需要修改（必须同时修改）：\n"
-        f"1. 公民身份号码：改为 {new_id}\n"
-        f"2. 出生日期：改为 {birth}\n\n"
-        "新文字的颜色必须和原身份证上其他印刷文字（如姓名、性别、民族、住址等）完全相同——深蓝灰色，不是纯黑。\n"
-        "字体大小、粗细、间距必须和原文字完全一致。\n"
-        "除了这两处（号码和出生日期），身份证上其他所有内容（姓名、性别、民族、住址、照片、签发机关、有效期、背景、边框、水印）保持100%完全不变。\n"
-        "不要改变图片任何其他部分。"
+        f"把身份证上的公民身份号码改成 {new_id}，"
+        f"出生日期改成 {birth}。"
+        f"只改这两个地方，其他所有文字、照片、背景完全保持原样不动。"
+        f"新数字的颜色和字体要和原来的号码一模一样。"
     )
 
 
@@ -62,7 +58,10 @@ async def edit_image(req: EditRequest):
             "model": SF_MODEL,
             "prompt": prompt,
             "image": req.image,
-            "image_size": "1024x1024"
+            # 注意：Qwen-Image-Edit 不支持 image_size 字段！
+            # 也支持 image2/image3 可传入参考图
+            "num_inference_steps": 28,
+            "seed": 42,
         }
 
         resp = await client.post(SF_IMAGE_URL, headers=headers, json=payload)
@@ -85,7 +84,11 @@ async def edit_image(req: EditRequest):
 
         return {
             "code": 0,
-            "data": {"image": f"data:{ct};base64,{img_b64}"}
+            "data": {
+                "image": f"data:{ct};base64,{img_b64}",
+                "prompt": prompt,
+                "birth_date": parse_birth_from_id(req.new_id),
+            }
         }
 
 
