@@ -5,59 +5,38 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>AI 图片编辑器</title>
+<title>身份证号修改</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f0f0f;color:#e0e0e0;min-height:100vh;min-height:100dvh;overflow-x:hidden}
-.container{width:100%;max-width:800px;margin:0 auto;padding:16px;background:#1a1a1a;min-height:100vh;min-height:100dvh}
-h1{font-size:22px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
-.subtitle{color:#888;font-size:13px;margin-bottom:16px;text-align:center}
-
-/* Tabs */
-.tabs{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid #333;padding-bottom:10px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.tab{flex-shrink:0;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:14px;color:#888;background:#252525;border:none;transition:all .2s;white-space:nowrap;-webkit-tap-highlight-color:transparent;min-height:44px}
-.tab.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
-.tab-content{display:none}
-.tab-content.show{display:block}
+.container{width:100%;max-width:500px;margin:0 auto;padding:16px;background:#1a1a1a;min-height:100vh;min-height:100dvh}
+h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
+.subtitle{color:#888;font-size:12px;margin-bottom:20px;text-align:center}
 
 /* Upload zone */
-.upload-zone{border:2px dashed #333;border-radius:12px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:14px;position:relative;-webkit-tap-highlight-color:transparent}
+.upload-zone{border:2px dashed #333;border-radius:12px;padding:24px 16px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px;position:relative;-webkit-tap-highlight-color:transparent}
 .upload-zone:active{border-color:#667eea;background:#1e1e2e}
 .upload-zone.has-image{border-style:solid;border-color:#667eea;padding:10px}
 .upload-icon{font-size:32px;display:block;margin-bottom:6px}
 .upload-text{color:#888;font-size:14px}
 .upload-hint{color:#555;font-size:12px;margin-top:4px}
 
-/* Canvas */
-.canvas-wrapper{position:relative;display:inline-block;margin:0 auto;user-select:none;-webkit-user-select:none;touch-action:none;border-radius:8px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.4)}
-.canvas-wrapper canvas{display:block;max-width:100%;height:auto}
-.editor-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;padding:12px;background:#222;border-radius:10px}
-.editor-tools label{font-size:12px;color:#aaa;flex-shrink:0}
-.editor-tools input[type=text]{background:#333;border:1px solid #444;border-radius:6px;padding:8px 10px;color:#e0e0e0;font-size:15px;outline:none;flex:1;min-width:100px;min-height:40px}
-.editor-tools input[type=text]:focus{border-color:#667eea}
-.editor-tools input[type=color]{width:36px;height:36px;border:1px solid #444;border-radius:6px;cursor:pointer;background:#333;padding:2px;flex-shrink:0}
-.editor-tools input[type=range]{width:80px;height:36px;flex-shrink:0}
-.tool-btn{min-height:40px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;transition:all .2s;flex-shrink:0;-webkit-tap-highlight-color:transparent}
-.tool-btn.apply{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
-.tool-btn.reset{background:#333;color:#ccc}
-.tool-btn:active{opacity:.8}
-.tool-hint{color:#666;font-size:11px;width:100%}
-
-/* Prompt */
-.prompt-section{margin-top:14px}
-.prompt-section label{display:block;font-size:14px;color:#aaa;margin-bottom:6px}
-.prompt-section textarea{width:100%;height:90px;background:#252525;border:1px solid #333;border-radius:10px;padding:12px;color:#e0e0e0;font-size:15px;resize:none;font-family:inherit;outline:none;transition:border .2s;-webkit-appearance:none}
-.prompt-section textarea:focus{border-color:#667eea}
-
 /* Preview */
 .preview-area{display:none;position:relative}
 .preview-area.show{display:block}
-.preview-area img{max-width:100%;max-height:200px;border-radius:8px;margin:0 auto;display:block}
+.preview-area img{max-width:100%;max-height:180px;border-radius:8px;margin:0 auto;display:block}
 .remove-btn{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;line-height:30px;text-align:center;min-height:30px;-webkit-tap-highlight-color:transparent}
 
+/* Input */
+.input-section{margin-bottom:16px}
+.input-section label{display:block;font-size:13px;color:#aaa;margin-bottom:6px}
+.input-section input{width:100%;background:#252525;border:1px solid #333;border-radius:10px;padding:12px;color:#e0e0e0;font-size:18px;outline:none;transition:border .2s;-webkit-appearance:none;letter-spacing:2px;text-align:center;min-height:48px}
+.input-section input:focus{border-color:#667eea}
+.input-section .hint{color:#666;font-size:11px;margin-top:4px;text-align:center}
+
 /* Buttons */
-.btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:14px;min-height:50px;-webkit-tap-highlight-color:transparent}
-.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;min-height:50px;-webkit-tap-highlight-color:transparent}
+.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;margin-top:8px}
 .btn-primary:active{opacity:.9;transform:scale(.98)}
 .btn-primary:disabled{opacity:.5;transform:none}
 .btn-download{min-height:36px;padding:8px 16px;background:#333;color:#ccc;border:none;border-radius:8px;cursor:pointer;font-size:13px;-webkit-tap-highlight-color:transparent}
@@ -66,10 +45,9 @@ h1{font-size:22px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 /* Results */
 .result-section{display:none;margin-top:20px;border-top:1px solid #333;padding-top:20px}
 .result-section.show{display:block}
-.result-grid{display:flex;flex-direction:column;gap:16px}
-.result-card{background:#222;border-radius:12px;padding:14px}
-.result-card .label{font-size:11px;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
-.result-card img{width:100%;border-radius:8px}
+.result-card{background:#222;border-radius:12px;padding:14px;max-width:320px;margin:0 auto;text-align:center}
+.result-card .label{font-size:11px;color:#888;margin-bottom:8px}
+.result-card img{max-width:100%;max-height:250px;border-radius:8px;display:block;margin:0 auto}
 
 /* Status */
 .status-bar{margin-top:14px;padding:14px;background:#252525;border-radius:8px;font-size:13px;color:#888;text-align:center;display:none}
@@ -79,119 +57,106 @@ h1{font-size:22px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 .error-msg{background:#3a1515;color:#f87171;padding:12px;border-radius:8px;font-size:13px;margin-top:10px;display:none}
 .error-msg.show{display:block}
 #fileInput{display:none}
-#fileInput2{display:none}
 
-/* Desktop overrides */
+/* Desktop */
 @media(min-width:700px){
-  .container{max-width:900px;padding:28px;min-height:auto}
-  h1{font-size:28px}
-  .result-grid{flex-direction:row;gap:20px}
-  .result-card{flex:1}
-  .upload-zone{padding:30px}
-  .tab{font-size:14px}
-  .preview-area img{max-height:300px}
+  .container{max-width:500px;padding:28px;min-height:auto}
+  h1{font-size:24px}
 }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>AI 图片编辑器</h1>
-  <p class="subtitle">AI 创意图片编辑 · 手机电脑都能用</p>
+  <h1>🔏 身份证号修改</h1>
+  <p class="subtitle">上传身份证 · 输入新号码 · 只改号码其他不变</p>
 
-  <div class="tabs">
-    <button class="tab" onclick="switchTab('ai')">🤖 AI 编辑</button>
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+    <span class="upload-icon" id="uploadIcon">🆔</span>
+    <div class="upload-text" id="uploadText">点击上传身份证照片</div>
+    <div class="upload-hint">建议拍摄清晰 · JPG/PNG/WebP</div>
+    <div class="preview-area" id="previewArea">
+      <img id="previewImg" alt="预览">
+      <button class="remove-btn" id="removeBtn" title="移除">✕</button>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="input-section">
+    <label>📝 新的身份证号码</label>
+    <input type="text" id="idNumberInput" placeholder="输入18位身份证号码" maxlength="18" inputmode="numeric" pattern="[0-9Xx]*" autocomplete="off">
+    <div class="hint">仅修改身份证号码，其余内容（姓名、照片、地址等）保持不变</div>
   </div>
 
-  <!-- AI编辑 -->
-  <div class="tab-content show" id="tab-ai">
-    <div class="upload-zone" id="uploadZone2" onclick="document.getElementById('fileInput2').click()">
-      <span class="upload-icon" id="uploadIcon">📁</span>
-      <div class="upload-text" id="uploadText">点击上传或拍照</div>
-      <div class="upload-hint">支持 JPG / PNG / WebP</div>
-      <div class="preview-area" id="previewArea">
-        <img id="previewImg" alt="预览">
-        <button class="remove-btn" id="removeBtn" title="移除">✕</button>
-      </div>
-    </div>
-    <input type="file" id="fileInput2" accept="image/*">
-    <div class="prompt-section">
-      <label>💬 想怎么改？</label>
-      <textarea id="promptInput" placeholder="例如：把背景换成海边、变成卡通风格、加一副墨镜……"></textarea>
-    </div>
-    <button class="btn btn-primary" id="submitBtn" onclick="submitAIEdit()">✨ 开始编辑</button>
-    <div class="status-bar" id="statusBar"><span class="spinner"></span> AI 处理中…</div>
-    <div class="error-msg" id="errorMsg2"></div>
-    <div class="result-section" id="resultSection">
-      <div class="result-grid">
-        <div class="result-card" style="max-width:320px;margin:0 auto">
-          <div class="label">编辑结果</div>
-          <img id="resultImg" alt="结果" style="max-height:250px;width:auto;margin:0 auto;display:block">
-          <button class="btn-download" style="width:100%;margin-top:8px;min-height:36px;font-size:13px" onclick="downloadAIResult()">💾 下载保存</button>
-        </div>
-      </div>
+  <button class="btn btn-primary" id="submitBtn" onclick="submitEdit()">✨ 修改身份证号</button>
+  <div class="status-bar" id="statusBar"><span class="spinner"></span> AI 正在处理，请稍候…</div>
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="result-section" id="resultSection">
+    <div class="result-card">
+      <div class="label">✅ 修改完成</div>
+      <img id="resultImg" alt="结果">
+      <button class="btn-download" style="width:100%;margin-top:10px;min-height:40px;font-size:14px" onclick="downloadResult()">💾 下载保存</button>
     </div>
   </div>
 </div>
 
 <script>
-// Tab switching
-function switchTab(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('show'));
-  if (name === 'ai') {
-    document.querySelector('.tab').classList.add('active');
-    document.getElementById('tab-ai').classList.add('show');
-  }
-}
+let uploadedImage = null;
 
-// AI Edit
-let aiImage = null;
-
-document.getElementById('fileInput2').addEventListener('change', function(e){
+document.getElementById('fileInput').addEventListener('change', function(e){
   const file = e.target.files[0];
   if(!file || !file.type.startsWith('image/')) return;
-  if(file.size > 10*1024*1024){ showError('图片不能超过10MB', 'errorMsg2'); return; }
+  if(file.size > 10*1024*1024){ showError('图片不能超过10MB'); return; }
   const reader = new FileReader();
   reader.onload = function(ev){
-    aiImage = ev.target.result;
-    document.getElementById('previewImg').src = aiImage;
+    uploadedImage = ev.target.result;
+    document.getElementById('previewImg').src = uploadedImage;
     document.getElementById('previewArea').classList.add('show');
     document.getElementById('uploadIcon').style.display = 'none';
     document.getElementById('uploadText').style.display = 'none';
-    document.getElementById('uploadZone2').classList.add('has-image');
-    hideError('errorMsg2');
+    document.getElementById('uploadZone').classList.add('has-image');
+    hideError();
   };
   reader.readAsDataURL(file);
 });
 
 document.getElementById('removeBtn').addEventListener('click', function(e){
   e.stopPropagation();
-  aiImage = null;
+  uploadedImage = null;
   document.getElementById('previewArea').classList.remove('show');
   document.getElementById('uploadIcon').style.display = '';
   document.getElementById('uploadText').style.display = '';
-  document.getElementById('uploadZone2').classList.remove('has-image');
-  document.getElementById('fileInput2').value = '';
+  document.getElementById('uploadZone').classList.remove('has-image');
+  document.getElementById('fileInput').value = '';
   document.getElementById('resultSection').classList.remove('show');
 });
 
-async function submitAIEdit(){
-  if(!aiImage){ showError('请先上传一张图片', 'errorMsg2'); return; }
-  const prompt = document.getElementById('promptInput').value.trim();
-  if(!prompt){ showError('请输入修改指令', 'errorMsg2'); return; }
+document.getElementById('idNumberInput').addEventListener('input', function(){
+  this.value = this.value.replace(/[^0-9Xx]/g, '').toUpperCase();
+});
+
+async function submitEdit(){
+  if(!uploadedImage){ showError('请先上传身份证照片'); return; }
+  const newId = document.getElementById('idNumberInput').value.trim();
+  if(!newId){ showError('请输入新的身份证号码'); return; }
+  if(newId.length !== 18){ showError('请输入18位身份证号码，当前' + newId.length + '位'); return; }
+  if(!/^\d{17}[\dXx]$/.test(newId)){ showError('身份证号码格式不正确'); return; }
+
+  // 自动生成精确 prompt
+  const prompt = generatePrompt(newId);
 
   const btn = document.getElementById('submitBtn');
   const statusBar = document.getElementById('statusBar');
   btn.disabled = true;
   btn.textContent = '⏳ 处理中…';
   statusBar.classList.add('show');
-  hideError('errorMsg2');
+  hideError();
 
   try{
     const res = await fetch('/api/edit', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({image: aiImage, prompt: prompt})
+      body: JSON.stringify({image: uploadedImage, prompt: prompt})
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || '请求失败');
@@ -199,51 +164,51 @@ async function submitAIEdit(){
     document.getElementById('resultSection').classList.add('show');
     document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
   }catch(err){
-    showError(err.message || '处理失败', 'errorMsg2');
+    showError(err.message || '处理失败');
   }finally{
     btn.disabled = false;
-    btn.textContent = '✨ 开始编辑';
+    btn.textContent = '✨ 修改身份证号';
     statusBar.classList.remove('show');
   }
 }
 
-function downloadAIResult(){
+function generatePrompt(newId) {
+  return `在这张身份证图片上，只修改公民身份号码为：${newId}。非常严格地要求：1) 只替换号码区域的18位数字文字，一字不改地显示为 ${newId}；2) 身份证上其他所有内容保持完全不变——姓名、性别、民族、出生日期、住址、照片、签发机关、有效期限都保持原样；3) 号码的字体、大小、颜色、位置和排版必须与原始身份证上完全一致；4) 不要改变图片的任何其他部分，包括背景、边框、水印、防伪纹路等。这是一张真实身份证，必须保留原有身份证的所有信息，仅仅修改号码。`;
+}
+
+function downloadResult(){
   const img = document.getElementById('resultImg');
   const link = document.createElement('a');
   link.href = img.src;
-  link.download = 'ai-edited-image.png';
+  link.download = 'idcard-edited.png';
   link.click();
 }
 
-// Helpers
-function showError(msg, id){
-  const el = document.getElementById(id);
+function showError(msg){
+  const el = document.getElementById('errorMsg');
   el.textContent = msg;
   el.classList.add('show');
   el.scrollIntoView({behavior:'smooth'});
 }
-function hideError(id){
-  document.getElementById(id).classList.remove('show');
+function hideError(){
+  document.getElementById('errorMsg').classList.remove('show');
 }
 
 // Drag & drop
-function setupDragDrop(zoneId, fileInputId) {
-  const zone = document.getElementById(zoneId);
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#764ba2'; });
-  zone.addEventListener('dragleave', () => zone.style.borderColor='');
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    zone.style.borderColor='';
-    const file = e.dataTransfer.files[0];
-    if(file && file.type.startsWith('image/')){
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      document.getElementById(fileInputId).files = dt.files;
-      document.getElementById(fileInputId).dispatchEvent(new Event('change'));
-    }
-  });
-}
-setupDragDrop('uploadZone2', 'fileInput2');
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#764ba2'; });
+zone.addEventListener('dragleave', () => zone.style.borderColor='');
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.style.borderColor='';
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')){
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('fileInput').files = dt.files;
+    document.getElementById('fileInput').dispatchEvent(new Event('change'));
+  }
+});
 </script>
 </body>
 </html>

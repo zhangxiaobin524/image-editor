@@ -36,8 +36,6 @@ async def edit_image(req: EditRequest):
             "model": SF_MODEL,
             "prompt": req.prompt,
             "image": req.image,
-            "num_inference_steps": 30,
-            "guidance_scale": 7.5,
             "image_size": "1024x1024"
         }
 
