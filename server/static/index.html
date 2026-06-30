@@ -62,7 +62,7 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 <body>
 <div class="container">
   <h1>身份证号修改</h1>
-  <p class="subtitle">CV 精确替换 · 号码 + 出生日期</p>
+  <p class="subtitle">直接渲染 · 号码 + 出生日期</p>
 
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
     <span class="upload-icon">🆔</span>
@@ -86,7 +86,7 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
   </div>
 
   <button class="btn btn-primary" id="submitBtn" onclick="doEdit()">开始修改</button>
-  <div class="status-bar" id="statusBar"><span class="spinner"></span>OCR 定位 + 文字替换中…</div>
+  <div class="status-bar" id="statusBar"><span class="spinner"></span>绘制中…</div>
   <div class="error-msg" id="errorMsg"></div>
 
   <div class="result-section" id="resultSection">
@@ -94,8 +94,7 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 
     <div class="info-panel" id="infoPanel">
       <div class="row"><span class="label">出生日期</span><span class="value" id="infoBirth">-</span></div>
-      <div class="row"><span class="label">方法</span><span class="value" id="infoMethod">-</span></div>
-      <div class="row"><span class="label">OCR定位</span><span class="value" id="infoOcr">-</span></div>
+      <div class="row"><span class="label">新号码</span><span class="value" id="infoNewId">-</span></div>
     </div>
 
     <button class="btn-download" onclick="download()" style="margin-top:16px">下载保存</button>
@@ -174,8 +173,7 @@ async function doEdit(){
     if(data.data.birth_date){
       document.getElementById('infoBirth').textContent=data.data.birth_date;
     }
-    document.getElementById('infoMethod').textContent=data.data.method||'cv-pipeline';
-    document.getElementById('infoOcr').textContent=data.data.ocr_used ? '精准定位' : '预估位置';
+    document.getElementById('infoNewId').textContent=data.data.new_id||id;
     document.getElementById('infoPanel').classList.add('show');
 
     document.getElementById('resultSection').classList.add('show');

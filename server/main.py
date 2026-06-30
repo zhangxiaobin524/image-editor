@@ -1,17 +1,12 @@
 import os
 import io
 import base64
-import cv2
 import numpy as np
-import pytesseract
 from PIL import Image, ImageDraw, ImageFont
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -20,215 +15,150 @@ FONT_PATH = "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc"
 
 
 class EditRequest(BaseModel):
-    image: str       # base64 ID card image
-    new_id: str      # new 18-digit ID number
+    image: str
+    new_id: str
 
 
-def parse_birth_from_id(id_num: str) -> str:
+def parse_birth(id_num: str) -> str:
     y, m, d = id_num[6:10], id_num[10:12], id_num[12:14]
     return f"{y}年{int(m)}月{int(d)}日"
 
 
-def b64_to_cv2(b64: str) -> np.ndarray:
+def b64_to_pil(b64: str) -> Image.Image:
     if "," in b64:
         b64 = b64.split(",", 1)[1]
-    buf = np.frombuffer(base64.b64decode(b64), np.uint8)
-    return cv2.imdecode(buf, cv2.IMREAD_COLOR)
+    return Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
 
 
-def cv2_to_b64(img: np.ndarray) -> str:
-    _, buf = cv2.imencode('.png', img)
-    return f"data:image/png;base64,{base64.b64encode(buf).decode()}"
+def pil_to_b64(img: Image.Image) -> str:
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
 
-def ocr_lines(img: np.ndarray) -> list[dict]:
-    """Run Tesseract, return list of detected text lines with bboxes."""
-    data = pytesseract.image_to_data(
-        img, lang='chi_sim', output_type=pytesseract.Output.DICT,
-        config='--psm 6'
-    )
-    lines = {}
-    for i in range(len(data['text'])):
-        t = data['text'][i].strip()
-        if not t or int(data['conf'][i]) < 20:
-            continue
-        key = (data['block_num'][i], data['line_num'][i])
-        if key not in lines:
-            lines[key] = {
-                'left': data['left'][i], 'top': data['top'][i],
-                'right': data['left'][i] + data['width'][i],
-                'bottom': data['top'][i] + data['height'][i],
-                'text': t, 'words': [t]
-            }
-        else:
-            r = lines[key]
-            r['left'] = min(r['left'], data['left'][i])
-            r['top'] = min(r['top'], data['top'][i])
-            r['right'] = max(r['right'], data['left'][i] + data['width'][i])
-            r['bottom'] = max(r['bottom'], data['top'][i] + data['height'][i])
-            r['text'] += t
-            r['words'].append(t)
-    return sorted(lines.values(), key=lambda x: x['top'])
-
-
-def find_region(lines: list[dict], keyword: str) -> dict | None:
-    """Find line containing keyword."""
-    for r in lines:
-        if keyword in r['text']:
-            return r
-    return None
-
-
-def find_id_number_region(lines: list[dict]) -> dict | None:
-    """Find line with 17+ digit/chars near bottom."""
-    for r in reversed(lines):
-        digits = ''.join(c for c in r['text'] if c.isdigit() or c.upper() == 'X')
-        if len(digits) >= 17:
-            return r
-    return None
-
-
-def sample_text_color(img: np.ndarray, region: dict) -> tuple[int, int, int]:
-    """Sample dominant text color (BGR) from region."""
-    x1, y1 = max(0, region['left']), max(0, region['top'])
-    x2, y2 = min(img.shape[1], region['right']), min(img.shape[0], region['bottom'])
-    roi = img[y1:y2, x1:x2]
-    if roi.size == 0:
-        return (80, 40, 40)
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    _, bin_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    dark = bin_img == 0
-    if np.sum(dark) > 20:
-        return tuple(int(c) for c in np.mean(roi[dark], axis=0))
-    return (80, 40, 40)
-
-
-def erase_text(img: np.ndarray, region: dict, margin: int = 6) -> np.ndarray:
-    """Inpaint text area using TELEA algorithm."""
+def sample_bg_color(img: np.ndarray, x1, y1, x2, y2) -> tuple[int, int, int]:
+    """Sample median color from edge pixels of region (likely background)."""
     h, w = img.shape[:2]
-    x1 = max(0, region['left'] - margin)
-    y1 = max(0, region['top'] - margin)
-    x2 = min(w, region['right'] + margin)
-    y2 = min(h, region['bottom'] + margin)
+    x1, y1 = max(0, x1), max(0, y1)
+    x2, y2 = min(w, x2), min(h, y2)
+    if x2 <= x1 or y2 <= y1:
+        return (220, 220, 220)
+    # Take top and bottom 2-pixel strips as background
     roi = img[y1:y2, x1:x2]
-    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-    _, bin_img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-    kernel = np.ones((3, 3), np.uint8)
-    bin_img = cv2.dilate(bin_img, kernel, iterations=3)
-    mask = np.zeros((h, w), dtype=np.uint8)
-    mask[y1:y2, x1:x2] = bin_img
-    return cv2.inpaint(img, mask, 7, cv2.INPAINT_TELEA)
+    return tuple(int(c) for c in np.median(roi[:3, :, :], axis=(0, 1)))
 
 
-def render_new_text(img: np.ndarray, region: dict, text: str, font_path: str,
-                    color_bgr: tuple[int, int, int]) -> np.ndarray:
-    """Render new text centered in region."""
-    region_w = region['right'] - region['left']
-    region_h = region['bottom'] - region['top']
+def sample_text_color(img: np.ndarray, x1, y1, x2, y2) -> tuple[int, int, int]:
+    """Sample dark text color from region."""
+    h, w = img.shape[:2]
+    x1, y1 = max(0, x1), max(0, y1)
+    x2, y2 = min(w, x2), min(h, y2)
+    if x2 <= x1 or y2 <= y1:
+        return (80, 40, 40)
+    roi = img[y1:y2, x1:x2]
+    return tuple(int(c) for c in np.mean(roi[roi.mean(axis=2) < 120], axis=0))
 
-    pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-    draw = ImageDraw.Draw(pil)
 
-    # Determine font size
-    font_size = int(region_h * 0.65)
-    font = ImageFont.truetype(font_path, font_size)
-    test_bbox = draw.textbbox((0, 0), text, font=font)
-    tw = test_bbox[2] - test_bbox[0]
+def erase_and_draw(pil: Image.Image, draw: ImageDraw.ImageDraw,
+                   x1: int, y1: int, x2: int, y2: int,
+                   text: str, font: ImageFont.FreeTypeFont,
+                   text_color: tuple[int, int, int],
+                   bg_color: tuple[int, int, int]) -> None:
+    """Cover old text with bg rectangle, then draw new text."""
+    arr = np.array(pil)
 
-    if tw > region_w * 1.15:
-        scale = region_w * 1.15 / tw
-        font = ImageFont.truetype(font_path, max(10, int(font_size * scale)))
-        test_bbox = draw.textbbox((0, 0), text, font=font)
-        tw = test_bbox[2] - test_bbox[0]
+    # Expand region slightly for clean coverage
+    margin = 4
+    ex1, ey1 = max(0, x1 - margin), max(0, y1 - margin)
+    ex2, ey2 = min(pil.width, x2 + margin), min(pil.height, y2 + margin)
 
-    th = test_bbox[3] - test_bbox[1]
-    x = int(region['left'] + (region_w - tw) / 2)
-    y = int(region['top'] + (region_h - th) / 2 - test_bbox[1])
+    # Paint background rectangle
+    draw.rectangle([ex1, ey1, ex2, ey2], fill=bg_color)
 
-    # Convert BGR -> RGB for PIL
-    rgb = (color_bgr[2], color_bgr[1], color_bgr[0])
+    # Draw new text centered in region
+    region_w, region_h = x2 - x1, y2 - y1
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
 
+    # Auto-scale font if too wide
+    current_font = font
+    if tw > region_w * 0.95:
+        scale = region_w * 0.95 / tw
+        new_size = max(10, int(font.size * scale))
+        current_font = ImageFont.truetype(FONT_PATH, new_size)
+        bbox = draw.textbbox((0, 0), text, font=current_font)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+    tx = int(x1 + (region_w - tw) / 2)
+    ty = int(y1 + (region_h - th) / 2 - bbox[1])
+
+    # For ID number: use monospace-like spacing to match original
     if len(text) == 18 and all(c.isdigit() or c.upper() == 'X' for c in text):
-        # Monospace rendering for ID number
         char_w = region_w / len(text)
         for i, ch in enumerate(text):
-            cx = int(region['left'] + i * char_w)
-            draw.text((cx, y), ch, font=font, fill=rgb)
+            cx = int(x1 + i * char_w)
+            draw.text((cx, ty), ch, font=current_font, fill=text_color)
     else:
-        draw.text((x, y), text, font=font, fill=rgb)
-
-    return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+        draw.text((tx, ty), text, font=current_font, fill=text_color)
 
 
 @app.post("/api/edit")
 async def edit_image(req: EditRequest):
-    birth = parse_birth_from_id(req.new_id)
+    birth = parse_birth(req.new_id)
 
     if not os.path.exists(FONT_PATH):
         raise HTTPException(500, f"Font not found: {FONT_PATH}")
 
-    img = b64_to_cv2(req.image)
-    h, w = img.shape[:2]
+    pil = b64_to_pil(req.image)
+    w, h = pil.size
+    arr = np.array(pil)
+    draw = ImageDraw.Draw(pil)
 
-    # ---- OCR ----
-    lines = ocr_lines(img)
+    # ---- Approximate positions by card proportions ----
+    # These are rough estimates for a standard ID card
+    # Birth date area: ~28%-58% width, ~52%-59% height
+    birth_x1, birth_y1 = int(w * 0.28), int(h * 0.52)
+    birth_x2, birth_y2 = int(w * 0.58), int(h * 0.59)
 
-    birth_region = find_region(lines, "出生") or find_region(lines, "生")
-    id_region = find_id_number_region(lines)
+    # ID number area: ~12%-88% width, ~81%-90% height
+    id_x1, id_y1 = int(w * 0.12), int(h * 0.81)
+    id_x2, id_y2 = int(w * 0.88), int(h * 0.90)
 
-    # Fallback: estimate by proportions
-    if birth_region is None:
-        birth_region = {
-            'left': int(w * 0.28), 'top': int(h * 0.52),
-            'right': int(w * 0.58), 'bottom': int(h * 0.59),
-        }
-    if id_region is None:
-        id_region = {
-            'left': int(w * 0.12), 'top': int(h * 0.81),
-            'right': int(w * 0.88), 'bottom': int(h * 0.90),
-        }
+    # Sample background colors
+    birth_bg = sample_bg_color(arr, birth_x1, birth_y1, birth_x2, birth_y2)
+    id_bg = sample_bg_color(arr, id_x1, id_y1, id_x2, id_y2)
 
-    birth_original = birth_region.copy()
-    id_original = id_region.copy()
+    # Sample text colors
+    birth_color = sample_text_color(arr, birth_x1, birth_y1, birth_x2, birth_y2)
+    id_color = sample_text_color(arr, id_x1, id_y1, id_x2, id_y2)
 
-    # ---- Sample colors ----
-    birth_color = sample_text_color(img, birth_original)
-    id_color = sample_text_color(img, id_original)
+    # Determine font sizes from region height
+    birth_font_size = int((birth_y2 - birth_y1) * 0.65)
+    id_font_size = int((id_y2 - id_y1) * 0.55)
 
-    # ---- Erase old text ----
-    img = erase_text(img, birth_original)
-    img = erase_text(img, id_original)
+    birth_font = ImageFont.truetype(FONT_PATH, birth_font_size)
+    id_font = ImageFont.truetype(FONT_PATH, id_font_size)
 
-    # ---- Render new text ----
-    img = render_new_text(img, birth_original, birth, FONT_PATH, birth_color)
-    img = render_new_text(img, id_original, req.new_id, FONT_PATH, id_color)
+    # Erase + redraw both fields
+    erase_and_draw(pil, draw, birth_x1, birth_y1, birth_x2, birth_y2,
+                   birth, birth_font, birth_color, birth_bg)
+    erase_and_draw(pil, draw, id_x1, id_y1, id_x2, id_y2,
+                   req.new_id, id_font, id_color, id_bg)
 
     return {
         "code": 0,
         "data": {
-            "image": cv2_to_b64(img),
+            "image": pil_to_b64(pil),
             "birth_date": birth,
-            "method": "cv-pipeline",
-            "ocr_used": birth_region is not None and id_region is not None,
+            "new_id": req.new_id,
+            "method": "pillow-render",
         }
     }
 
 
 @app.get("/api/health")
 def health():
-    import subprocess
-    t_ok = False
-    try:
-        r = subprocess.run(['tesseract', '--version'], capture_output=True, text=True)
-        t_ok = r.returncode == 0
-    except Exception:
-        pass
-    return {
-        "status": "ok",
-        "tesseract": t_ok,
-        "font_available": os.path.exists(FONT_PATH),
-        "method": "cv-pipeline"
-    }
+    return {"status": "ok", "font": os.path.exists(FONT_PATH), "method": "pillow-render"}
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
