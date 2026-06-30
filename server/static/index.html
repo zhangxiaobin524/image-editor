@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>身份证号修改</title>
+<title>身份证信息修改</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0f0f0f;color:#e0e0e0;min-height:100vh;min-height:100dvh;overflow-x:hidden}
@@ -20,19 +20,30 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 .upload-icon{font-size:32px;display:block;margin-bottom:6px}
 .upload-text{color:#888;font-size:14px}
 .upload-hint{color:#555;font-size:12px;margin-top:4px}
+.upload-zone-small{border:2px dashed #444;border-radius:10px;padding:12px;text-align:center;cursor:pointer;transition:all .2s;position:relative;-webkit-tap-highlight-color:transparent}
+.upload-zone-small:active{border-color:#667eea;background:#1e1e2e}
+.upload-zone-small.has-image{border-style:solid;border-color:#667eea;padding:4px}
 
 /* Preview */
 .preview-area{display:none;position:relative}
 .preview-area.show{display:block}
 .preview-area img{max-width:100%;max-height:180px;border-radius:8px;margin:0 auto;display:block}
+.preview-area-small{display:none;margin-top:6px}
+.preview-area-small img{max-width:100%;max-height:80px;border-radius:6px;margin:0 auto;display:block}
 .remove-btn{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;line-height:30px;text-align:center;min-height:30px;-webkit-tap-highlight-color:transparent}
 
 /* Input */
-.input-section{margin-bottom:16px}
-.input-section label{display:block;font-size:13px;color:#aaa;margin-bottom:6px}
-.input-section input{width:100%;background:#252525;border:1px solid #333;border-radius:10px;padding:12px;color:#e0e0e0;font-size:18px;outline:none;transition:border .2s;-webkit-appearance:none;letter-spacing:2px;text-align:center;min-height:48px}
-.input-section input:focus{border-color:#667eea}
-.input-section .hint{color:#666;font-size:11px;margin-top:4px;text-align:center}
+.input-section{margin-bottom:14px}
+.input-section label{display:block;font-size:13px;color:#aaa;margin-bottom:5px}
+.input-section input,.input-section textarea{width:100%;background:#252525;border:1px solid #333;border-radius:10px;padding:11px 12px;color:#e0e0e0;font-size:15px;outline:none;transition:border .2s;-webkit-appearance:none;font-family:inherit}
+.input-section input:focus,.input-section textarea:focus{border-color:#667eea}
+.input-section textarea{resize:none;height:60px;font-size:14px}
+.input-section .hint{color:#666;font-size:11px;margin-top:3px}
+.input-section .birth-display{background:#1a2a1a;border:1px solid #2a4a2a;border-radius:8px;padding:10px 12px;color:#4ade80;font-size:15px;text-align:center;margin-top:6px;display:none}
+.input-section .birth-display.show{display:block}
+
+/* Divider */
+.divider{height:1px;background:#2a2a2a;margin:16px 0}
 
 /* Buttons */
 .btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;min-height:50px;-webkit-tap-highlight-color:transparent}
@@ -57,19 +68,21 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 .error-msg{background:#3a1515;color:#f87171;padding:12px;border-radius:8px;font-size:13px;margin-top:10px;display:none}
 .error-msg.show{display:block}
 #fileInput{display:none}
+#photoInput{display:none}
 
 /* Desktop */
 @media(min-width:700px){
-  .container{max-width:500px;padding:28px;min-height:auto}
+  .container{max-width:520px;padding:28px;min-height:auto}
   h1{font-size:24px}
 }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>🔏 身份证号修改</h1>
-  <p class="subtitle">上传身份证 · 输入新号码 · 只改号码其他不变</p>
+  <h1>🔏 身份证信息修改</h1>
+  <p class="subtitle">上传身份证 · 填写新信息 · AI 精确替换</p>
 
+  <!-- 身份证上传 -->
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
     <span class="upload-icon" id="uploadIcon">🆔</span>
     <div class="upload-text" id="uploadText">点击上传身份证照片</div>
@@ -81,13 +94,42 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
   </div>
   <input type="file" id="fileInput" accept="image/*">
 
+  <!-- 身份证号（必填） -->
   <div class="input-section">
-    <label>📝 新的身份证号码</label>
-    <input type="text" id="idNumberInput" placeholder="输入18位身份证号码" maxlength="18" inputmode="numeric" pattern="[0-9Xx]*" autocomplete="off">
-    <div class="hint">仅修改身份证号码，其余内容（姓名、照片、地址等）保持不变</div>
+    <label>📝 新的身份证号码 <span style="color:#f87171">*</span></label>
+    <input type="text" id="idNumberInput" placeholder="输入18位身份证号码" maxlength="18" inputmode="numeric" pattern="[0-9Xx]*" autocomplete="off" style="letter-spacing:2px;text-align:center;min-height:48px">
+    <div class="birth-display" id="birthDisplay"></div>
   </div>
 
-  <button class="btn btn-primary" id="submitBtn" onclick="submitEdit()">✨ 修改身份证号</button>
+  <div class="divider"></div>
+
+  <!-- 姓名（选填） -->
+  <div class="input-section">
+    <label>👤 新的姓名 <span style="color:#555;font-size:11px">（选填）</span></label>
+    <input type="text" id="nameInput" placeholder="输入新姓名" autocomplete="off">
+  </div>
+
+  <!-- 地址（选填） -->
+  <div class="input-section">
+    <label>📍 新的住址 <span style="color:#555;font-size:11px">（选填）</span></label>
+    <textarea id="addressInput" placeholder="输入新住址"></textarea>
+  </div>
+
+  <!-- 头像（选填） -->
+  <div class="input-section">
+    <label>📸 新的头像 <span style="color:#555;font-size:11px">（选填）</span></label>
+    <div class="upload-zone-small" id="photoZone" onclick="document.getElementById('photoInput').click()">
+      <span id="photoIcon" style="color:#888;font-size:13px">点击上传新头像照片</span>
+      <div class="preview-area-small" id="photoPreviewArea">
+        <img id="photoPreviewImg" alt="头像预览">
+        <button class="remove-btn" id="photoRemoveBtn" title="移除" style="top:2px;right:2px;width:24px;height:24px;font-size:12px;line-height:24px">✕</button>
+      </div>
+    </div>
+    <input type="file" id="photoInput" accept="image/*">
+    <div class="hint">上传后将替换身份证上的头像照片</div>
+  </div>
+
+  <button class="btn btn-primary" id="submitBtn" onclick="submitEdit()">✨ 开始修改</button>
   <div class="status-bar" id="statusBar"><span class="spinner"></span> AI 正在处理，请稍候…</div>
   <div class="error-msg" id="errorMsg"></div>
 
@@ -102,7 +144,9 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 
 <script>
 let uploadedImage = null;
+let uploadedPhoto = null;
 
+// ---------- 身份证上传 ----------
 document.getElementById('fileInput').addEventListener('change', function(e){
   const file = e.target.files[0];
   if(!file || !file.type.startsWith('image/')) return;
@@ -131,10 +175,52 @@ document.getElementById('removeBtn').addEventListener('click', function(e){
   document.getElementById('resultSection').classList.remove('show');
 });
 
-document.getElementById('idNumberInput').addEventListener('input', function(){
-  this.value = this.value.replace(/[^0-9Xx]/g, '').toUpperCase();
+// ---------- 头像上传 ----------
+document.getElementById('photoInput').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file || !file.type.startsWith('image/')) return;
+  if(file.size > 5*1024*1024){ showError('头像不能超过5MB'); return; }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    uploadedPhoto = ev.target.result;
+    document.getElementById('photoPreviewImg').src = uploadedPhoto;
+    document.getElementById('photoPreviewArea').style.display = 'block';
+    document.getElementById('photoIcon').style.display = 'none';
+    document.getElementById('photoZone').classList.add('has-image');
+  };
+  reader.readAsDataURL(file);
 });
 
+document.getElementById('photoRemoveBtn').addEventListener('click', function(e){
+  e.stopPropagation();
+  uploadedPhoto = null;
+  document.getElementById('photoPreviewArea').style.display = 'none';
+  document.getElementById('photoIcon').style.display = '';
+  document.getElementById('photoZone').classList.remove('has-image');
+  document.getElementById('photoInput').value = '';
+});
+
+// ---------- 身份证号输入 → 自动推导出生日期 ----------
+document.getElementById('idNumberInput').addEventListener('input', function(){
+  this.value = this.value.replace(/[^0-9Xx]/g, '').toUpperCase();
+  updateBirthDisplay();
+});
+
+function updateBirthDisplay(){
+  const id = document.getElementById('idNumberInput').value.trim();
+  const el = document.getElementById('birthDisplay');
+  if(id.length === 18 && /^\d{17}[\dXx]$/.test(id)){
+    const year = id.substring(6,10);
+    const month = id.substring(10,12);
+    const day = id.substring(12,14);
+    el.textContent = '🎂 出生日期：' + year + '年' + month + '月' + day + '日（自动从号码推导）';
+    el.classList.add('show');
+  } else {
+    el.classList.remove('show');
+  }
+}
+
+// ---------- 提交 ----------
 async function submitEdit(){
   if(!uploadedImage){ showError('请先上传身份证照片'); return; }
   const newId = document.getElementById('idNumberInput').value.trim();
@@ -142,8 +228,8 @@ async function submitEdit(){
   if(newId.length !== 18){ showError('请输入18位身份证号码，当前' + newId.length + '位'); return; }
   if(!/^\d{17}[\dXx]$/.test(newId)){ showError('身份证号码格式不正确'); return; }
 
-  // 自动生成精确 prompt
-  const prompt = generatePrompt(newId);
+  const newName = document.getElementById('nameInput').value.trim();
+  const newAddress = document.getElementById('addressInput').value.trim();
 
   const btn = document.getElementById('submitBtn');
   const statusBar = document.getElementById('statusBar');
@@ -153,10 +239,18 @@ async function submitEdit(){
   hideError();
 
   try{
+    const body = {
+      image: uploadedImage,
+      new_id: newId,
+      new_name: newName,
+      new_address: newAddress,
+      new_photo: uploadedPhoto || ''
+    };
+
     const res = await fetch('/api/edit', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({image: uploadedImage, prompt: prompt})
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || '请求失败');
@@ -167,18 +261,9 @@ async function submitEdit(){
     showError(err.message || '处理失败');
   }finally{
     btn.disabled = false;
-    btn.textContent = '✨ 修改身份证号';
+    btn.textContent = '✨ 开始修改';
     statusBar.classList.remove('show');
   }
-}
-
-function generatePrompt(newId) {
-  return `在这张身份证图片上，只修改公民身份号码为：${newId}。严格按以下要求执行：
-1) 数字颜色：必须与原始身份证号码的颜色完全一致。注意身份证号码不是纯黑色，而是深蓝黑色或深灰色，请仔细观察原始号码的实际颜色（包括深浅、浓淡），新号码的颜色必须100%匹配原来的色调，不准使用纯黑(#000000)。
-2) 只替换号码区域的18位数字，一字不改地显示为 ${newId}。
-3) 身份证上其他所有内容保持完全不变——姓名、性别、民族、出生日期、住址、照片、签发机关、有效期限都不能有任何变化。
-4) 号码的字体、大小、粗细、位置和字符间距必须与原始身份证上完全一致，完全贴合原来的排版。
-5) 不要改变图片的亮度、对比度、背景、边框、水印、防伪纹路等任何其他部分。`;
 }
 
 function downloadResult(){
@@ -200,20 +285,24 @@ function hideError(){
 }
 
 // Drag & drop
-const zone = document.getElementById('uploadZone');
-zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#764ba2'; });
-zone.addEventListener('dragleave', () => zone.style.borderColor='');
-zone.addEventListener('drop', e => {
-  e.preventDefault();
-  zone.style.borderColor='';
-  const file = e.dataTransfer.files[0];
-  if(file && file.type.startsWith('image/')){
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    document.getElementById('fileInput').files = dt.files;
-    document.getElementById('fileInput').dispatchEvent(new Event('change'));
-  }
-});
+function setupDragDrop(zoneId, fileInputId, setter) {
+  const zone = document.getElementById(zoneId);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#764ba2'; });
+  zone.addEventListener('dragleave', () => zone.style.borderColor='');
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.style.borderColor='';
+    const file = e.dataTransfer.files[0];
+    if(file && file.type.startsWith('image/')){
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      document.getElementById(fileInputId).files = dt.files;
+      document.getElementById(fileInputId).dispatchEvent(new Event('change'));
+    }
+  });
+}
+setupDragDrop('uploadZone', 'fileInput');
+setupDragDrop('photoZone', 'photoInput');
 </script>
 </body>
 </html>
