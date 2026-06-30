@@ -234,9 +234,15 @@ async function submitEdit(){
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || '请求失败');
 
-    // 显示 OCR 结果
-    if(data.data.original){
+    // 显示 OCR 或模板模式状态
+    const ocrPanel = document.getElementById('ocrPanel');
+    const ocrStatus = document.getElementById('ocrStatus');
+    if(data.data.ocr_used && data.data.original){
       showOcrResult(data.data.original);
+    } else {
+      document.getElementById('ocrTable').innerHTML = '<tr><td style="color:#f59e0b">模式</td><td style="color:#f59e0b">OCR不可用，使用标准身份证模板定位（可能不够精确）</td></tr>';
+      ocrStatus.textContent = '⚠️ 视觉模型未开通，已降级为模板模式';
+      ocrPanel.classList.add('show');
     }
 
     // 显示结果
@@ -244,7 +250,7 @@ async function submitEdit(){
     document.getElementById('resultSection').classList.add('show');
     document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
 
-    // 显示使用的 prompt
+    // 显示 prompt
     if(data.data.prompt){
       document.getElementById('promptContent').textContent = data.data.prompt;
       document.getElementById('promptPanel').classList.add('show');
