@@ -86,7 +86,7 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
   </div>
 
   <button class="btn btn-primary" id="submitBtn" onclick="doEdit()">开始修改</button>
-  <div class="status-bar" id="statusBar"><span class="spinner"></span>AI处理中，请稍候…</div>
+  <div class="status-bar" id="statusBar"><span class="spinner"></span>Step 1/2: 修改号码中…</div>
   <div class="error-msg" id="errorMsg"></div>
 
   <div class="result-section" id="resultSection">
@@ -94,7 +94,8 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 
     <div class="info-panel" id="infoPanel">
       <div class="row"><span class="label">出生日期</span><span class="value" id="infoBirth">-</span></div>
-      <div class="row"><span class="label">发送指令</span><span class="value" id="infoPrompt" style="font-size:11px;text-align:right;max-width:70%">-</span></div>
+      <div class="row" id="step1Row"><span class="label">Step 1</span><span class="value">-</span></div>
+      <div class="row" id="step2Row"><span class="label">Step 2</span><span class="value">-</span></div>
     </div>
 
     <button class="btn-download" onclick="download()" style="margin-top:16px">下载保存</button>
@@ -155,6 +156,7 @@ async function doEdit(){
   const btn=document.getElementById('submitBtn');
   const sb=document.getElementById('statusBar');
   btn.disabled=true; btn.textContent='处理中…'; sb.classList.add('show');
+  document.getElementById('statusBar').innerHTML='<span class="spinner"></span>Step 1/2: 修改号码中…';
   document.getElementById('resultSection').classList.remove('show');
 
   try{
@@ -173,8 +175,10 @@ async function doEdit(){
     if(data.data.birth_date){
       document.getElementById('infoBirth').textContent=data.data.birth_date;
     }
-    if(data.data.prompt){
-      document.getElementById('infoPrompt').textContent=data.data.prompt;
+    if(data.data.steps){
+      const s = data.data.steps;
+      document.getElementById('step1Row').querySelector('.value').textContent = s[0].action + ' → ' + s[0].to;
+      document.getElementById('step2Row').querySelector('.value').textContent = s[1].action + ' → ' + s[1].to;
     }
     document.getElementById('infoPanel').classList.add('show');
 
