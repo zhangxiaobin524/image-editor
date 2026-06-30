@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from PIL import Image
+from PIL import Image, ImageFilter
 
 load_dotenv()
 
@@ -28,15 +28,14 @@ class EditRequest(BaseModel):
 
 
 def extract_birth_date(id_number: str) -> str:
-    """Extract birth date from 18-digit ID number: YYYY年MM月DD日"""
+    """Extract birth date from 18-digit ID number."""
     year = id_number[6:10]
-    month = id_number[10:12]
-    day = id_number[12:14]
+    month = str(int(id_number[10:12]))   # remove leading zero
+    day = str(int(id_number[12:14]))     # remove leading zero
     return f"{year}年{month}月{day}日"
 
 
 def decode_base64_image(b64_str: str) -> Image.Image:
-    """Decode base64 (with or without data: prefix) to PIL Image."""
     if "," in b64_str:
         b64_str = b64_str.split(",", 1)[1]
     data = base64.b64decode(b64_str)
@@ -44,78 +43,82 @@ def decode_base64_image(b64_str: str) -> Image.Image:
 
 
 def encode_image_to_base64(img: Image.Image) -> str:
-    """Encode PIL Image to base64 data URL."""
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode('utf-8')}"
 
 
 def composite_photo(idcard_b64: str, photo_b64: str) -> str:
-    """Paste new avatar photo onto the ID card image at the photo position.
-    Returns composited image as base64 data URL."""
-    idcard_img = decode_base64_image(idcard_b64)
-    photo_img = decode_base64_image(photo_b64)
+    """Paste new avatar onto ID card with feathered edges for natural blending."""
+    idcard_img = decode_base64_image(idcard_b64).convert("RGBA")
+    photo_img = decode_base64_image(photo_b64).convert("RGBA")
 
     w, h = idcard_img.size
 
-    # ID card photo area: top-right, ~20% width, ~30% height
+    # ID card photo area
     pw = int(w * 0.20)
     ph = int(h * 0.30)
-    px = int(w * 0.68)  # 68% from left
-    py = int(h * 0.10)  # 10% from top
+    px = int(w * 0.68)
+    py = int(h * 0.10)
 
-    # Resize photo to fit, crop to fill (center crop)
+    # Center-crop photo to target aspect ratio
     photo_ratio = photo_img.width / photo_img.height
     target_ratio = pw / ph
 
     if photo_ratio > target_ratio:
-        # Photo is wider - crop width
         new_w = int(photo_img.height * target_ratio)
         left = (photo_img.width - new_w) // 2
         photo_img = photo_img.crop((left, 0, left + new_w, photo_img.height))
     else:
-        # Photo is taller - crop height
         new_h = int(photo_img.width / target_ratio)
         top = (photo_img.height - new_h) // 2
         photo_img = photo_img.crop((0, top, photo_img.width, top + new_h))
 
     photo_resized = photo_img.resize((pw, ph), Image.LANCZOS)
 
-    # Paste with alpha support
-    if photo_resized.mode == 'RGBA':
-        idcard_img.paste(photo_resized, (px, py), photo_resized)
-    else:
-        idcard_img.paste(photo_resized, (px, py))
+    # Create feathered mask: white center fading to transparent at edges
+    mask = Image.new("L", (pw, ph), 255)
+    feather = max(pw, ph) // 10  # 10% feather radius
+    if feather > 0:
+        mask = mask.filter(ImageFilter.GaussianBlur(radius=feather))
 
-    return encode_image_to_base64(idcard_img)
+    # Paste with feathered mask
+    idcard_img.paste(photo_resized, (px, py), mask)
+
+    return encode_image_to_base64(idcard_img.convert("RGB"))
 
 
 def build_prompt(new_id: str, birth_date: str, new_name: str, new_address: str, has_photo: bool) -> str:
-    """Build a comprehensive editing prompt based on all fields."""
-    changes = []
-    changes.append(f"修改公民身份号码为：{new_id}")
-    changes.append(f"修改出生日期为：{birth_date}")
+    """Build editing prompt. Birth date is ALWAYS included (derived from ID number)."""
+    lines = []
+
+    # --- Must-change items ---
+    lines.append(f"1. 将公民身份号码改为：{new_id}")
+    lines.append(f"2. 将出生日期改为：{birth_date}")
+
+    idx = 3
 
     if new_name:
-        changes.append(f"修改姓名为：{new_name}")
+        lines.append(f"{idx}. 将姓名改为：{new_name}")
+        idx += 1
 
     if new_address:
-        changes.append(f"修改住址为：{new_address}")
+        lines.append(f"{idx}. 将住址改为：{new_address}")
+        idx += 1
 
     if has_photo:
-        changes.append("身份证右上角照片区域已有新头像，请保持该头像内容不变，仅调整其光照和色调，使其与身份证背景自然融合，看起来像原本就印在上面一样")
+        lines.append(f"{idx}. 身份证右上角已放置新头像照片（有羽化过渡边缘），请将新头像与身份证自然融合：调整头像的亮度、对比度、色调、颗粒感，使其与身份证整体风格完全一致，就像原本就是印在这张身份证上的一样。头像内容保持不变。")
 
-    change_list = "\n".join([f"  {i+1}) {c}" for i, c in enumerate(changes)])
+    # Build strict requirements section
+    reqs = [
+        "【关键】身份证号码和出生日期的文字颜色必须观察原始身份证文字的实际颜色来匹配。身份证上的印刷文字是深蓝灰色或深灰色，不是纯黑色(#000000)。请仔细观察原来字号、住址等文字的颜色深浅，新写的号码和日期颜色必须与它们完全一样，深浅浓淡一致。",
+        "只修改上述列出的项目，身份证上其他所有内容（性别、民族、签发机关、有效期限、防伪水印、底纹等）保持100%不变",
+        "所有文字的字体、大小、粗细、位置、字符间距与原始身份证完全一致",
+        "不要改变图片整体的亮度、对比度、背景色、边框",
+    ]
 
-    prompt = f"""请对这张身份证进行以下修改：
-{change_list}
-
-严格要求：
-- 只修改上述指定内容，身份证上其他所有信息（性别、民族、签发机关、有效期限、防伪水印等）保持完全不变
-- 所有文字的颜色、字体、大小、粗细、位置和字符间距必须与原始身份证完全一致，不准使用纯黑色
-- 修改后的文字看起来就像原本打印在上面的一样，自然无痕
-- 不要改变图片的亮度、对比度、背景、边框等任何其他部分"""
-
+    prompt = "请对这张身份证进行以下修改：\n" + "\n".join(lines)
+    prompt += "\n\n严格要求：\n" + "\n".join(f"- {r}" for r in reqs)
     return prompt
 
 
@@ -124,11 +127,9 @@ async def edit_image(req: EditRequest):
     if not SF_API_KEY:
         raise HTTPException(500, "SF_API_KEY not configured")
 
-    # Extract birth date from ID number
     birth_date = extract_birth_date(req.new_id)
-
-    # If new photo provided, composite it onto the ID card
     has_photo = bool(req.new_photo)
+
     if has_photo:
         try:
             work_image = composite_photo(req.image, req.new_photo)
@@ -137,7 +138,6 @@ async def edit_image(req: EditRequest):
     else:
         work_image = req.image
 
-    # Build prompt
     prompt = build_prompt(req.new_id, birth_date, req.new_name, req.new_address, has_photo)
 
     headers = {
