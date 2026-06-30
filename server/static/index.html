@@ -123,14 +123,10 @@ h1{font-size:22px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
     <div class="error-msg" id="errorMsg2"></div>
     <div class="result-section" id="resultSection">
       <div class="result-grid">
-        <div class="result-card">
-          <div class="label">原始图片</div>
-          <img id="originalImg" alt="原始">
-        </div>
-        <div class="result-card">
-          <div class="label">编辑后</div>
-          <img id="resultImg" alt="结果">
-          <button class="btn-download" style="width:100%;margin-top:10px;min-height:40px" onclick="downloadAIResult()">💾 下载保存</button>
+        <div class="result-card" style="max-width:320px;margin:0 auto">
+          <div class="label">编辑结果</div>
+          <img id="resultImg" alt="结果" style="max-height:250px;width:auto;margin:0 auto;display:block">
+          <button class="btn-download" style="width:100%;margin-top:8px;min-height:36px;font-size:13px" onclick="downloadAIResult()">💾 下载保存</button>
         </div>
       </div>
     </div>
@@ -199,7 +195,6 @@ async function submitAIEdit(){
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || '请求失败');
-    document.getElementById('originalImg').src = aiImage;
     document.getElementById('resultImg').src = data.data.image;
     document.getElementById('resultSection').classList.add('show');
     document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
