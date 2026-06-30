@@ -20,16 +20,11 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 .upload-icon{font-size:32px;display:block;margin-bottom:6px}
 .upload-text{color:#888;font-size:14px}
 .upload-hint{color:#555;font-size:12px;margin-top:4px}
-.upload-zone-small{border:2px dashed #444;border-radius:10px;padding:12px;text-align:center;cursor:pointer;transition:all .2s;position:relative;-webkit-tap-highlight-color:transparent}
-.upload-zone-small:active{border-color:#667eea;background:#1e1e2e}
-.upload-zone-small.has-image{border-style:solid;border-color:#667eea;padding:4px}
 
 /* Preview */
 .preview-area{display:none;position:relative}
 .preview-area.show{display:block}
 .preview-area img{max-width:100%;max-height:180px;border-radius:8px;margin:0 auto;display:block}
-.preview-area-small{display:none;margin-top:6px}
-.preview-area-small img{max-width:100%;max-height:80px;border-radius:6px;margin:0 auto;display:block}
 .remove-btn{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;line-height:30px;text-align:center;min-height:30px;-webkit-tap-highlight-color:transparent}
 
 /* Input */
@@ -39,11 +34,13 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 .input-section input:focus,.input-section textarea:focus{border-color:#667eea}
 .input-section textarea{resize:none;height:60px;font-size:14px}
 .input-section .hint{color:#666;font-size:11px;margin-top:3px}
-.input-section .birth-display{background:#1a2a1a;border:1px solid #2a4a2a;border-radius:8px;padding:10px 12px;color:#4ade80;font-size:15px;text-align:center;margin-top:6px;display:none}
+.input-section .birth-display{background:#1a2a1a;border:1px solid #2a4a2a;border-radius:8px;padding:10px 12px;color:#4ade80;font-size:14px;text-align:center;margin-top:6px;display:none}
 .input-section .birth-display.show{display:block}
 
-/* Divider */
-.divider{height:1px;background:#2a2a2a;margin:16px 0}
+/* Field tag */
+.field-tag{display:inline-block;background:#2a2a4a;color:#8888cc;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px;vertical-align:middle}
+.field-tag.required{background:#3a2020;color:#f87171}
+.field-tag.optional{background:#252535;color:#888}
 
 /* Buttons */
 .btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;min-height:50px;-webkit-tap-highlight-color:transparent}
@@ -68,7 +65,6 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 .error-msg{background:#3a1515;color:#f87171;padding:12px;border-radius:8px;font-size:13px;margin-top:10px;display:none}
 .error-msg.show{display:block}
 #fileInput{display:none}
-#photoInput{display:none}
 
 /* Desktop */
 @media(min-width:700px){
@@ -80,7 +76,7 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 <body>
 <div class="container">
   <h1>🔏 身份证信息修改</h1>
-  <p class="subtitle">上传身份证 · 填写新信息 · AI 精确替换</p>
+  <p class="subtitle">上传身份证 · 填写新信息 · AI 精确替换文字</p>
 
   <!-- 身份证上传 -->
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
@@ -96,37 +92,22 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 
   <!-- 身份证号（必填） -->
   <div class="input-section">
-    <label>📝 新的身份证号码 <span style="color:#f87171">*</span></label>
-    <input type="text" id="idNumberInput" placeholder="输入18位身份证号码" maxlength="18" inputmode="numeric" pattern="[0-9Xx]*" autocomplete="off" style="letter-spacing:2px;text-align:center;min-height:48px">
+    <label>📝 新的身份证号码 <span class="field-tag required">必填</span></label>
+    <input type="text" id="idNumberInput" placeholder="输入18位身份证号码" maxlength="18" inputmode="numeric" pattern="[0-9Xx]*" autocomplete="off" style="letter-spacing:2px;text-align:center;min-height:48px;font-size:18px">
     <div class="birth-display" id="birthDisplay"></div>
+    <div class="hint">出生日期将自动从号码中推导并一起修改</div>
   </div>
-
-  <div class="divider"></div>
 
   <!-- 姓名（选填） -->
   <div class="input-section">
-    <label>👤 新的姓名 <span style="color:#555;font-size:11px">（选填）</span></label>
-    <input type="text" id="nameInput" placeholder="输入新姓名" autocomplete="off">
+    <label>👤 新的姓名 <span class="field-tag optional">选填</span></label>
+    <input type="text" id="nameInput" placeholder="不填则保持原名" autocomplete="off">
   </div>
 
   <!-- 地址（选填） -->
   <div class="input-section">
-    <label>📍 新的住址 <span style="color:#555;font-size:11px">（选填）</span></label>
-    <textarea id="addressInput" placeholder="输入新住址"></textarea>
-  </div>
-
-  <!-- 头像（选填） -->
-  <div class="input-section">
-    <label>📸 新的头像 <span style="color:#555;font-size:11px">（选填）</span></label>
-    <div class="upload-zone-small" id="photoZone" onclick="document.getElementById('photoInput').click()">
-      <span id="photoIcon" style="color:#888;font-size:13px">点击上传新头像照片</span>
-      <div class="preview-area-small" id="photoPreviewArea">
-        <img id="photoPreviewImg" alt="头像预览">
-        <button class="remove-btn" id="photoRemoveBtn" title="移除" style="top:2px;right:2px;width:24px;height:24px;font-size:12px;line-height:24px">✕</button>
-      </div>
-    </div>
-    <input type="file" id="photoInput" accept="image/*">
-    <div class="hint">上传后将替换身份证上的头像照片</div>
+    <label>📍 新的住址 <span class="field-tag optional">选填</span></label>
+    <textarea id="addressInput" placeholder="不填则保持原地址"></textarea>
   </div>
 
   <button class="btn btn-primary" id="submitBtn" onclick="submitEdit()">✨ 开始修改</button>
@@ -144,7 +125,6 @@ h1{font-size:20px;margin-bottom:2px;background:linear-gradient(135deg,#667eea,#7
 
 <script>
 let uploadedImage = null;
-let uploadedPhoto = null;
 
 // ---------- 身份证上传 ----------
 document.getElementById('fileInput').addEventListener('change', function(e){
@@ -175,31 +155,6 @@ document.getElementById('removeBtn').addEventListener('click', function(e){
   document.getElementById('resultSection').classList.remove('show');
 });
 
-// ---------- 头像上传 ----------
-document.getElementById('photoInput').addEventListener('change', function(e){
-  const file = e.target.files[0];
-  if(!file || !file.type.startsWith('image/')) return;
-  if(file.size > 5*1024*1024){ showError('头像不能超过5MB'); return; }
-  const reader = new FileReader();
-  reader.onload = function(ev){
-    uploadedPhoto = ev.target.result;
-    document.getElementById('photoPreviewImg').src = uploadedPhoto;
-    document.getElementById('photoPreviewArea').style.display = 'block';
-    document.getElementById('photoIcon').style.display = 'none';
-    document.getElementById('photoZone').classList.add('has-image');
-  };
-  reader.readAsDataURL(file);
-});
-
-document.getElementById('photoRemoveBtn').addEventListener('click', function(e){
-  e.stopPropagation();
-  uploadedPhoto = null;
-  document.getElementById('photoPreviewArea').style.display = 'none';
-  document.getElementById('photoIcon').style.display = '';
-  document.getElementById('photoZone').classList.remove('has-image');
-  document.getElementById('photoInput').value = '';
-});
-
 // ---------- 身份证号输入 → 自动推导出生日期 ----------
 document.getElementById('idNumberInput').addEventListener('input', function(){
   this.value = this.value.replace(/[^0-9Xx]/g, '').toUpperCase();
@@ -211,9 +166,9 @@ function updateBirthDisplay(){
   const el = document.getElementById('birthDisplay');
   if(id.length === 18 && /^\d{17}[\dXx]$/.test(id)){
     const year = id.substring(6,10);
-    const month = id.substring(10,12);
-    const day = id.substring(12,14);
-    el.textContent = '🎂 出生日期：' + year + '年' + month + '月' + day + '日（自动从号码推导）';
+    const month = String(parseInt(id.substring(10,12), 10));
+    const day = String(parseInt(id.substring(12,14), 10));
+    el.textContent = '🎂 出生日期将改为：' + year + '年' + month + '月' + day + '日';
     el.classList.add('show');
   } else {
     el.classList.remove('show');
@@ -243,8 +198,7 @@ async function submitEdit(){
       image: uploadedImage,
       new_id: newId,
       new_name: newName,
-      new_address: newAddress,
-      new_photo: uploadedPhoto || ''
+      new_address: newAddress
     };
 
     const res = await fetch('/api/edit', {
@@ -255,7 +209,7 @@ async function submitEdit(){
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || '请求失败');
     document.getElementById('resultImg').src = data.data.image;
-    document.getElementById('resultSection').classList.add('show');
+    document.getElementById('resultSection').addClass('show');
     document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
   }catch(err){
     showError(err.message || '处理失败');
@@ -285,24 +239,20 @@ function hideError(){
 }
 
 // Drag & drop
-function setupDragDrop(zoneId, fileInputId, setter) {
-  const zone = document.getElementById(zoneId);
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#764ba2'; });
-  zone.addEventListener('dragleave', () => zone.style.borderColor='');
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    zone.style.borderColor='';
-    const file = e.dataTransfer.files[0];
-    if(file && file.type.startsWith('image/')){
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      document.getElementById(fileInputId).files = dt.files;
-      document.getElementById(fileInputId).dispatchEvent(new Event('change'));
-    }
-  });
-}
-setupDragDrop('uploadZone', 'fileInput');
-setupDragDrop('photoZone', 'photoInput');
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#764ba2'; });
+zone.addEventListener('dragleave', () => zone.style.borderColor='');
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.style.borderColor='';
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')){
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('fileInput').files = dt.files;
+    document.getElementById('fileInput').dispatchEvent(new Event('change'));
+  }
+});
 </script>
 </body>
 </html>
