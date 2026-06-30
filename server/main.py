@@ -18,7 +18,7 @@ SF_API_KEY = os.getenv("SF_API_KEY", "")
 SF_IMAGE_URL = "https://api.siliconflow.cn/v1/images/generations"
 SF_CHAT_URL = "https://api.siliconflow.cn/v1/chat/completions"
 SF_EDIT_MODEL = "Qwen/Qwen-Image-Edit-2509"
-SF_VISION_MODEL = "Qwen/Qwen2.5-VL-72B-Instruct"
+SF_VISION_MODEL = "Qwen/Qwen2.5-VL-7B-Instruct"
 
 
 class EditRequest(BaseModel):
