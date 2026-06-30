@@ -1,6 +1,10 @@
 FROM python:3.11-slim
 WORKDIR /app
 
+# Use Tsinghua Debian mirror for speed
+RUN sed -i 's|http://deb.debian.org|http://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources && \
+    sed -i 's|http://security.debian.org|http://mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
+
 # Install Tesseract OCR with Chinese support + Chinese fonts
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
