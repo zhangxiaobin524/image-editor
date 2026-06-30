@@ -24,6 +24,8 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 .preview-area img{max-width:100%;max-height:200px;border-radius:8px;margin:0 auto;display:block}
 .remove-btn{position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.7);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;line-height:28px;text-align:center;-webkit-tap-highlight-color:transparent}
 
+.portrait-zone{padding:20px 10px;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center}.portrait-zone .preview-area img{max-height:120px}.portrait-zone.has-image{padding:8px;border-color:#4ade80}
+
 .input-group{margin-bottom:20px}
 .input-group label{display:block;font-size:14px;color:#aaa;margin-bottom:6px}
 .input-group input{width:100%;background:#252525;border:1px solid #333;border-radius:10px;padding:14px;color:#e0e0e0;font-size:20px;text-align:center;letter-spacing:3px;outline:none;-webkit-appearance:none;font-family:monospace;min-height:52px;transition:border .2s}
@@ -36,14 +38,23 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 .btn-primary:disabled{opacity:.5;transform:none}
 .btn-download{min-height:40px;padding:10px 16px;background:#333;color:#ddd;border:none;border-radius:8px;cursor:pointer;font-size:14px;width:100%}
 
-.status-bar{margin-top:14px;padding:14px;background:#252525;border-radius:8px;font-size:13px;color:#888;text-align:center;display:none}
+.status-bar{margin-top:14px;padding:14px;background:#252525;border-radius:8px;text-align:center;display:none}
 .status-bar.show{display:block}
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid #333;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin-right:8px;vertical-align:middle}
-@keyframes spin{to{transform:rotate(360deg)}}
+.status-bar .text{font-size:13px;color:#aaa;margin-bottom:10px}
+.progress-track{height:4px;background:#333;border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;width:30%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:2px;animation:progress-slide 1.5s ease-in-out infinite}
+@keyframes progress-slide{0%{width:0%;margin-left:0%}50%{width:60%;margin-left:10%}100%{width:0%;margin-left:100%}}
 
 .result-section{display:none;margin-top:24px;padding-top:24px;border-top:1px solid #333}
 .result-section.show{display:block}
-.result-section img{max-width:100%;max-height:300px;border-radius:8px;display:block;margin:0 auto 12px}
+.result-section img{max-width:100%;max-height:300px;border-radius:8px;display:block;margin:0 auto 12px;cursor:pointer;transition:transform .2s}
+.result-section img:hover{transform:scale(1.02)}
+
+/* 图片放大弹窗 */
+.lightbox{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;justify-content:center;align-items:center;flex-direction:column}
+.lightbox.show{display:flex}
+.lightbox img{max-width:95%;max-height:90vh;border-radius:8px;object-fit:contain}
+.lightbox .close-hint{color:#888;font-size:13px;margin-top:16px}
 
 .info-panel{margin-top:12px;background:#1a1a2e;border:1px solid #333;border-radius:8px;display:none}
 .info-panel.show{display:block}
@@ -61,8 +72,8 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 </head>
 <body>
 <div class="container">
-  <h1>身份证号修改</h1>
-  <p class="subtitle">AI 编辑 · 号码 + 出生日期</p>
+  <h1>身份证信息修改</h1>
+  <p class="subtitle">AI 编辑 · 姓名 + 号码（选填）</p>
 
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
     <span class="upload-icon">🆔</span>
@@ -76,8 +87,13 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
   <input type="file" id="fileInput" accept="image/*">
 
   <div class="input-group">
-    <label>新的身份证号码</label>
-    <input type="text" id="idInput" placeholder="18 位身份证号码" maxlength="18" inputmode="numeric" autocomplete="off">
+    <label>新的姓名</label>
+    <input type="text" id="nameInput" placeholder="如：张三" maxlength="20" autocomplete="off">
+  </div>
+
+  <div class="input-group">
+    <label>新的身份证号码（选填）</label>
+    <input type="text" id="idInput" placeholder="填了号码的话出生日期也会自动修改" maxlength="18" inputmode="numeric" autocomplete="off">
   </div>
 
   <div class="input-group" id="birthGroup" style="display:none">
@@ -86,19 +102,29 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
   </div>
 
   <button class="btn btn-primary" id="submitBtn" onclick="doEdit()">开始修改</button>
-  <div class="status-bar" id="statusBar"><span class="spinner"></span>Step 1/2: 修改号码中…</div>
+  <div class="status-bar" id="statusBar">
+    <div class="text">AI 正在修改身份证…</div>
+    <div class="progress-track"><div class="progress-fill"></div></div>
+  </div>
   <div class="error-msg" id="errorMsg"></div>
 
   <div class="result-section" id="resultSection">
-    <img id="resultImg" alt="结果">
+    <img id="resultImg" alt="结果" onclick="openLightbox()">
 
     <div class="info-panel" id="infoPanel">
+      <div class="row"><span class="label">姓名</span><span class="value" id="infoName">-</span></div>
       <div class="row"><span class="label">出生日期</span><span class="value" id="infoBirth">-</span></div>
       <div class="row"><span class="label">新号码</span><span class="value" id="infoNewId">-</span></div>
     </div>
 
     <button class="btn-download" onclick="download()" style="margin-top:16px">下载保存</button>
   </div>
+</div>
+
+<!-- 放大弹窗 -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <img id="lightboxImg" alt="放大预览">
+  <div class="close-hint">点击任意处关闭</div>
 </div>
 
 <script>
@@ -147,47 +173,34 @@ document.getElementById('idInput').addEventListener('input', function(){
 
 async function doEdit(){
   if(!image){ err('请先上传身份证照片');return }
-  const id = document.getElementById('idInput').value.trim();
-  if(!id){ err('请输入新的身份证号码');return }
-  if(id.length!==18){ err('请输入完整的18位号码，当前'+id.length+'位');return }
-  if(!/^\d{17}[\dXx]$/.test(id)){ err('号码格式不正确');return }
+  const id = document.getElementById('idInput').value.trim() || null;
+  const name = document.getElementById('nameInput').value.trim() || null;
+  if(!id && !name){ err('至少填写姓名或身份证号中的一项');return }
+  if(id && (id.length!==18 || !/^\d{17}[\dXx]$/.test(id))){ err('号码格式不正确，需为18位');return }
 
   const btn=document.getElementById('submitBtn');
   const sb=document.getElementById('statusBar');
-  btn.disabled=true; btn.textContent='处理中…'; sb.classList.add('show');
-  sb.innerHTML='<span class="spinner"></span>Step 1/2: 修改号码…';
+  btn.disabled=true; btn.textContent='等待中…'; sb.classList.add('show');
   document.getElementById('resultSection').classList.remove('show');
+
+  const body = {image};
+  if (id) body.new_id = id;
+  if (name) body.new_name = name;
 
   try{
     const res=await fetch('/api/edit',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image, new_id:id})
+      body:JSON.stringify(body)
     });
     const data=await res.json();
     if(!res.ok) throw new Error(data.detail||'请求失败');
 
-    // 显示结果图
     document.getElementById('resultImg').src=data.data.image;
-
-    // 显示结果
-    document.getElementById('resultImg').src=data.data.image;
-
-    // 信息面板
+    document.getElementById('infoName').textContent=data.data.new_name||'-';
     document.getElementById('infoBirth').textContent=data.data.birth_date||'-';
-    document.getElementById('infoNewId').textContent=data.data.new_id||id;
-    if(data.data.steps){
-      const s=data.data.steps;
-      let h='<div class="row"><span class="label">Step1</span><span class="value">'+s[0]+'</span></div>';
-      h+='<div class="row"><span class="label">Step2</span><span class="value">'+s[1]+'</span></div>';
-      document.getElementById('infoPanel').innerHTML=
-        '<div class="row"><span class="label">出生日期</span><span class="value" id="infoBirth">'+(data.data.birth_date||'-')+'</span></div>'+
-        '<div class="row"><span class="label">新号码</span><span class="value">'+(data.data.new_id||id)+'</span></div>'+h;
-    }else{
-      document.getElementById('infoPanel').classList.add('show');
-    }
+    document.getElementById('infoNewId').textContent=data.data.new_id||'-';
     document.getElementById('infoPanel').classList.add('show');
-
     document.getElementById('resultSection').classList.add('show');
     document.getElementById('resultSection').scrollIntoView({behavior:'smooth'});
   }catch(e){
@@ -201,6 +214,14 @@ function download(){
   const a=document.createElement('a');
   a.href=document.getElementById('resultImg').src;
   a.download='idcard.png'; a.click();
+}
+
+function openLightbox(){
+  document.getElementById('lightboxImg').src=document.getElementById('resultImg').src;
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox(){
+  document.getElementById('lightbox').classList.remove('show');
 }
 
 function err(m){

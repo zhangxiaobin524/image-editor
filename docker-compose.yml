@@ -4,7 +4,7 @@ services:
     ports:
       - "9004:8000"
     environment:
-      - SF_API_KEY=${SF_API_KEY}
+      - VOLC_API_KEY=${VOLC_API_KEY}
     restart: unless-stopped
     networks:
       - fluent-life-network
