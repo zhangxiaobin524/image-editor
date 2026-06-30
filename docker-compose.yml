@@ -1,0 +1,14 @@
+services:
+  image-editor:
+    build: ./server
+    ports:
+      - "9004:8000"
+    environment:
+      - SF_API_KEY=${SF_API_KEY}
+    restart: unless-stopped
+    networks:
+      - fluent-life-network
+
+networks:
+  fluent-life-network:
+    external: true
