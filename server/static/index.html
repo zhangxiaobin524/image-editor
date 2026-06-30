@@ -202,7 +202,7 @@ function err(m){
 // drag & drop
 const z=document.getElementById('uploadZone');
 z.addEventListener('dragover',e=>{e.preventDefault();z.style.borderColor='#764ba2'});
-z.addEventListener('dragleave',()=>z.style.borderColor=''});
+z.addEventListener('dragleave',()=>z.style.borderColor='');
 z.addEventListener('drop',e=>{
   e.preventDefault(); z.style.borderColor='';
   const f=e.dataTransfer.files[0];
