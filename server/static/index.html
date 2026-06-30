@@ -54,7 +54,7 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
 <body>
 <div class="container">
   <h1>身份证号修改</h1>
-  <p class="subtitle">只改号码 · 其余 100% 不变</p>
+  <p class="subtitle">号码 + 出生日期 · 其余不变</p>
 
   <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
     <span class="upload-icon" id="uploadIcon">🆔</span>
@@ -71,8 +71,12 @@ h1{font-size:20px;margin-bottom:4px;text-align:center;background:linear-gradient
     <label>新的身份证号码</label>
     <input type="text" id="idInput" placeholder="18 位身份证号码" maxlength="18" inputmode="numeric" autocomplete="off">
   </div>
+  <div class="input-group" id="birthGroup" style="display:none">
+    <label>出生日期（自动从号码提取）</label>
+    <input type="text" id="birthDisplay" disabled style="background:#1a1a2e;color:#667eea;border-color:#667eea;font-size:18px;letter-spacing:2px">
+  </div>
 
-  <button class="btn btn-primary" id="submitBtn" onclick="doEdit()">修改号码</button>
+  <button class="btn btn-primary" id="submitBtn" onclick="doEdit()">修改号码 + 出生</button>
   <div class="status-bar" id="statusBar"><span class="spinner"></span>处理中，请稍候…</div>
   <div class="error-msg" id="errorMsg"></div>
 
@@ -114,6 +118,16 @@ document.getElementById('removeBtn').addEventListener('click', function(e){
 
 document.getElementById('idInput').addEventListener('input', function(){
   this.value = this.value.replace(/[^0-9Xx]/g,'').toUpperCase();
+  const v = this.value;
+  const bg = document.getElementById('birthGroup');
+  const bd = document.getElementById('birthDisplay');
+  if (v.length >= 14) {
+    const y = v.slice(6,10), m = v.slice(10,12), d = v.slice(12,14);
+    bd.value = y + '年' + parseInt(m) + '月' + parseInt(d) + '日';
+    bg.style.display = 'block';
+  } else {
+    bg.style.display = 'none';
+  }
 });
 
 async function doEdit(){
